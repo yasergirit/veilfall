@@ -13,7 +13,7 @@ const MARCH_SPEED_SECONDS_PER_HEX = 30;
 const TILE_W = 256;
 const TILE_H = 384;
 // Hex face center offset — higher value = image drawn higher above hex center
-const FACE_CENTER_Y = 0.72;
+const FACE_CENTER_Y = 1;
 
 const TERRAIN_COLORS: Record<string, string> = {
   plains: '#4a6b2a', hills: '#3d5a28', forest: '#1a3a1a', woodlands: '#2d5a2d',
