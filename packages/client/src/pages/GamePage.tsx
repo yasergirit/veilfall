@@ -142,7 +142,7 @@ export default function GamePage() {
   }, [setActivePanel]);
 
   return (
-    <div className="w-screen h-screen flex flex-col overflow-hidden" style={{ background: 'var(--veil-blue-deep)' }}>
+    <div className="w-screen h-screen flex flex-col overflow-hidden" style={{ background: 'url(/assets/bg/settlement_bg.png) center/cover no-repeat, var(--veil-blue-deep)' }}>
       <ResourceBar />
       <ToastContainer />
       <div className="flex-1 flex overflow-hidden">
