@@ -121,7 +121,7 @@ export default function GamePage() {
           </div>
         </div>
       </div>
-      {showTutorial && <TutorialOverlay onComplete={() => setShowTutorial(false)} />}
+      {showTutorial && <TutorialOverlay onComplete={() => setShowTutorial(false)} username={player?.username} />}
     </div>
   );
 }

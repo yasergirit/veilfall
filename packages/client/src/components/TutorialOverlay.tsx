@@ -8,11 +8,12 @@ interface TutorialStep {
   spotlightSelector: string | null;
 }
 
-const STEPS: TutorialStep[] = [
+function getSteps(username: string): TutorialStep[] {
+  return [
   {
-    title: 'Welcome, Heir',
+    title: `Welcome, ${username}`,
     description:
-      'Welcome to Veilfall, Heir. Elder Maren left you this settlement. The walls are thin and the people are few, but the land remembers its strength. Let\u2019s get you started.',
+      `Welcome to Veilfall, ${username}. Elder Maren left you this settlement. The walls are thin and the people are few, but the land remembers its strength. Let\u2019s get you started.`,
     spotlightSelector: null,
   },
   {
@@ -42,16 +43,18 @@ const STEPS: TutorialStep[] = [
   {
     title: 'The Path Is Yours',
     description:
-      'You\u2019re on your own now, Heir. The Elder believed in you. Build wisely, forge alliances, and uncover what the old world left behind. The Veil is thinning.',
+      `You\u2019re on your own now, ${username}. The Elder believed in you. Build wisely, forge alliances, and uncover what the old world left behind. The Veil is thinning.`,
     spotlightSelector: null,
   },
-];
+  ];
+}
 
-export default function TutorialOverlay({ onComplete }: { onComplete: () => void }) {
+export default function TutorialOverlay({ onComplete, username = 'Heir' }: { onComplete: () => void; username?: string }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  const STEPS = getSteps(username);
   const step = STEPS[currentStep];
 
   // Animate entrance
