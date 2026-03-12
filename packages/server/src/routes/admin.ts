@@ -29,8 +29,20 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post('/reset', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
 
-    if (player.username !== 'LucidReis') {
-      return reply.status(403).send({ error: 'Permission denied. Only LucidReis can reset the game.' });
+    const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+
+    let isAllowed = player.username === 'LucidReis' || player.role === 'tester' || player.role === 'admin' || TESTER_EMAILS.includes(player.email);
+
+    // DB fallback for old JWT tokens missing email/role
+    if (!isAllowed) {
+      for (const email of TESTER_EMAILS) {
+        const dbPlayer = mockDb.getPlayerByEmail(email);
+        if (dbPlayer && dbPlayer.id === player.id) { isAllowed = true; break; }
+      }
+    }
+
+    if (!isAllowed) {
+      return reply.status(403).send({ error: 'Permission denied.' });
     }
 
     try {
