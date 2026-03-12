@@ -7,13 +7,18 @@ const API_BASE = import.meta.env.VITE_API_URL
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
 
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  // Only set Content-Type for requests with a body
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+  Object.assign(headers, options.headers);
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
+    headers,
   });
 
   const data = await res.json();
@@ -186,5 +191,5 @@ export const api = {
   getQuests: () =>
     request<{ story: any[]; daily: any[]; milestones: any[] }>('/quests'),
   claimQuestReward: (questId: string) =>
-    request<any>(`/quests/${questId}/claim`, { method: 'POST' }),
+    request<any>(`/quests/${encodeURIComponent(questId)}/claim`, { method: 'POST' }),
 };

@@ -57,9 +57,9 @@ export default function QuestTracker() {
     setClaiming(questId);
     try {
       await api.claimQuestReward(questId);
-      setRefreshKey(k => k + 1);
-    } catch {
-      // ignore
+      fetchQuests();
+    } catch (err) {
+      console.error('[Quest] Claim failed:', questId, err);
     } finally {
       setClaiming(null);
     }
