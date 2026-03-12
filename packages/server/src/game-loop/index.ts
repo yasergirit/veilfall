@@ -8,6 +8,7 @@ import { WORLD_BOSS_TEMPLATES } from '../routes/world-boss.js';
 import { QUEST_DEFINITIONS } from '../routes/hero-quests.js';
 import { EQUIPMENT_ITEMS } from '../routes/heroes.js';
 import { incrementQuestProgress } from '../routes/quests.js';
+import { getIO } from '../websocket/index.js';
 
 // ── Aether Harvest Cycle State ──
 const AETHER_DORMANT_DURATION = 300_000; // 5 minutes
@@ -227,6 +228,15 @@ export function startGameLoop() {
       // Increment harvest_moon event progress
       if (activeEvent?.type === 'harvest_moon' && resourcesGatheredThisTick > 0) {
         incrementProgress(settlement.playerId, resourcesGatheredThisTick);
+      }
+
+      // Broadcast resource update via WebSocket
+      const io = getIO();
+      if (io) {
+        io.to(`player:${settlement.playerId}`).emit('resources:update', {
+          settlementId: settlement.id,
+          resources: { ...settlement.resources },
+        });
       }
     }
   }, 10_000);

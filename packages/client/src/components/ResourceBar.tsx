@@ -44,6 +44,44 @@ function calculateProductionRates(
   return rates;
 }
 
+/** Hook that interpolates resources between server polls using production rates */
+function useInterpolatedResources(
+  serverResources: Record<string, number>,
+  productionRates: Record<string, number>,
+): Record<string, number> {
+  const [displayed, setDisplayed] = useState(serverResources);
+  const baseRef = useRef(serverResources);
+  const baseTimeRef = useRef(Date.now());
+
+  // When server data arrives, reset the base
+  useEffect(() => {
+    baseRef.current = serverResources;
+    baseTimeRef.current = Date.now();
+    setDisplayed(serverResources);
+  }, [serverResources]);
+
+  // Tick every second to interpolate
+  useEffect(() => {
+    const hasProduction = Object.values(productionRates).some((r) => r > 0);
+    if (!hasProduction) return;
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - baseTimeRef.current) / 1000; // seconds
+      const interpolated: Record<string, number> = {};
+      for (const [key, baseValue] of Object.entries(baseRef.current)) {
+        const rate = productionRates[key] ?? 0;
+        // rate is per hour, convert to per second
+        interpolated[key] = (baseValue as number) + (rate / 3600) * elapsed;
+      }
+      setDisplayed(interpolated);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [productionRates]);
+
+  return displayed;
+}
+
 export default function ResourceBar() {
   const player = useAuthStore((s) => s.player);
   const settlements = useGameStore((s) => s.settlements);
@@ -105,10 +143,13 @@ export default function ResourceBar() {
   }, [aetherCycle]);
 
   const activeSettlement = settlements.find((s) => s.id === activeSettlementId);
-  const resources = activeSettlement?.resources ?? STARTING_RESOURCES;
+  const serverResources = activeSettlement?.resources ?? STARTING_RESOURCES;
   const productionRates = activeSettlement
     ? calculateProductionRates(activeSettlement.buildings)
     : {};
+
+  // Interpolate resources in real-time between server polls
+  const resources = useInterpolatedResources(serverResources, productionRates);
 
   return (
     <div

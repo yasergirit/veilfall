@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/auth-store.js';
 import { useGameStore } from '../stores/game-store.js';
 import { api } from '../lib/api.js';
+import { getSocket } from '../lib/socket.js';
 import HexMap from '../components/HexMap.js';
 import SettlementPanel from '../components/SettlementPanel.js';
 import HeroPanel from '../components/HeroPanel.js';
@@ -56,13 +57,26 @@ export default function GamePage() {
     }).catch(console.error);
   }, [setSettlements]);
 
-  // Poll for resource updates every 10s
+  // Listen for real-time resource updates via WebSocket
+  const updateResources = useGameStore((s) => s.updateResources);
+  useEffect(() => {
+    const sock = getSocket();
+    if (!sock) return;
+
+    const handler = (data: { settlementId: string; resources: Record<string, number> }) => {
+      updateResources(data.settlementId, data.resources as any);
+    };
+    sock.on('resources:update', handler);
+    return () => { sock.off('resources:update', handler); };
+  }, [updateResources]);
+
+  // Fallback poll for resource updates every 30s (in case WS is down)
   useEffect(() => {
     const interval = setInterval(() => {
       api.getSettlements().then((data) => {
         setSettlements(data.settlements);
       }).catch(() => {});
-    }, 10_000);
+    }, 30_000);
     return () => clearInterval(interval);
   }, [setSettlements]);
 
