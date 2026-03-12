@@ -6,6 +6,8 @@ import { STARTING_RESOURCES } from '@veilfall/shared';
 import NotificationBell from './NotificationBell.js';
 import { api } from '../lib/api.js';
 
+const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+
 const RESOURCE_ORDER = ['food', 'wood', 'stone', 'iron', 'aether_stone'] as const;
 
 const RESOURCE_ICONS: Record<string, string> = {
@@ -90,6 +92,17 @@ export default function ResourceBar() {
   const activeSettlementId = useGameStore((s) => s.activeSettlementId);
   const setActiveSettlement = useGameStore((s) => s.setActiveSettlement);
   const setActivePanel = useGameStore((s) => s.setActivePanel);
+  const setSettlements = useGameStore((s) => s.setSettlements);
+  const isTester = TESTER_EMAILS.includes(player?.email ?? '');
+
+  const handleAddResource = useCallback(async (resource: string) => {
+    if (!activeSettlementId) return;
+    try {
+      await api.addResource(activeSettlementId, resource);
+      const data = await api.getSettlements();
+      setSettlements(data.settlements);
+    } catch { /* ignore */ }
+  }, [activeSettlementId, setSettlements]);
   const [showSettlementDropdown, setShowSettlementDropdown] = useState(false);
   const settlementDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -189,6 +202,15 @@ export default function ResourceBar() {
                 <span className="text-xs text-green-400/80 tabular-nums">
                   +{rate}/hr
                 </span>
+              )}
+              {isTester && (
+                <button
+                  onClick={() => handleAddResource(key)}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600/30 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/50 transition-colors"
+                  title={`+1000 ${RESOURCE_LABELS[key]} (tester)`}
+                >
+                  +1k
+                </button>
               )}
             </div>
           );

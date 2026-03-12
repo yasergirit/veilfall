@@ -248,6 +248,34 @@ export async function settlementRoutes(app: FastifyInstance) {
     };
   });
 
+  // Debug: Add resources (tester-only)
+  const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+  const addResourceSchema = z.object({ resource: z.string() });
+
+  app.post('/:settlementId/add-resource', { preHandler: requireAuth }, async (request, reply) => {
+    const player = request.user;
+    if (!TESTER_EMAILS.includes(player.email)) {
+      return reply.status(403).send({ error: 'Not authorized' });
+    }
+
+    const { settlementId } = request.params as { settlementId: string };
+    const { resource } = addResourceSchema.parse(request.body);
+
+    const settlement = mockDb.getSettlement(settlementId);
+    if (!settlement || settlement.playerId !== player.id) {
+      return reply.status(404).send({ error: 'Settlement not found' });
+    }
+
+    if (settlement.resources[resource] == null) {
+      return reply.status(400).send({ error: 'Invalid resource type' });
+    }
+
+    settlement.resources[resource] += 1000;
+    mockDb.updateSettlement(settlementId, { resources: settlement.resources });
+
+    return { message: `+1000 ${resource}`, resources: settlement.resources };
+  });
+
   // Found a new settlement
   app.post('/found', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;

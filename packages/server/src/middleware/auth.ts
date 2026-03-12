@@ -4,6 +4,7 @@ export interface JwtPayload {
   id: string;
   username: string;
   faction: string;
+  email: string;
 }
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {

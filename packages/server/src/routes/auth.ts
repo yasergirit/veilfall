@@ -117,11 +117,11 @@ export async function authRoutes(app: FastifyInstance) {
       stats: statsWithEquip,
     });
 
-    const token = app.jwt.sign({ id: playerId, username: body.username, faction: body.faction });
+    const token = app.jwt.sign({ id: playerId, username: body.username, faction: body.faction, email: body.email });
     const refreshToken = app.jwt.sign({ id: playerId, type: 'refresh' }, { expiresIn: '7d' });
 
     reply.status(201).send({
-      player: { id: playerId, username: body.username, faction: body.faction, settlementName: body.settlementName },
+      player: { id: playerId, username: body.username, faction: body.faction, email: body.email, settlementName: body.settlementName },
       token,
       refreshToken,
     });
@@ -135,12 +135,12 @@ export async function authRoutes(app: FastifyInstance) {
     const valid = await bcrypt.compare(body.password, player.passwordHash);
     if (!valid) return reply.status(401).send({ error: 'Invalid email or password' });
 
-    const token = app.jwt.sign({ id: player.id, username: player.username, faction: player.faction });
+    const token = app.jwt.sign({ id: player.id, username: player.username, faction: player.faction, email: player.email });
     const refreshToken = app.jwt.sign({ id: player.id, type: 'refresh' }, { expiresIn: '7d' });
     const settlements = mockDb.getSettlementsByPlayer(player.id);
 
     reply.send({
-      player: { id: player.id, username: player.username, faction: player.faction, settlementName: settlements[0]?.name ?? 'Unknown' },
+      player: { id: player.id, username: player.username, faction: player.faction, email: player.email, settlementName: settlements[0]?.name ?? 'Unknown' },
       token,
       refreshToken,
     });

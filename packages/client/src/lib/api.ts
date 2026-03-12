@@ -205,6 +205,12 @@ export const api = {
   claimDailyReward: () =>
     request<any>('/daily-rewards/claim', { method: 'POST' }),
 
+  // Debug: add resources (tester-only)
+  addResource: (settlementId: string, resource: string) =>
+    request<{ message: string; resources: any }>(`/settlements/${settlementId}/add-resource`, {
+      method: 'POST', body: JSON.stringify({ resource }),
+    }),
+
   // Admin
   resetGame: () =>
     request<any>('/admin/reset', { method: 'POST' }),
