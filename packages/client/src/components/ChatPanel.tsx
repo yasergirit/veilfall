@@ -249,8 +249,8 @@ export default function ChatPanel() {
       {/* Expanded Panel */}
       {expanded && (
         <div
-          className="flex-1 flex flex-col border border-[var(--ruin-grey)]/30 rounded-b-lg overflow-hidden"
-          style={{ background: 'rgba(18, 28, 50, 0.97)' }}
+          className="rpg-chat-bg flex-1 flex flex-col border border-[var(--ruin-grey)]/30 rounded-b-lg overflow-hidden"
+          style={{ background: 'url(/assets/gui/chat/chat_main_bg.png) center/cover, rgba(18, 28, 50, 0.97)' }}
         >
           {/* Channel Tabs */}
           <div className="flex border-b border-[var(--ruin-grey)]/20 shrink-0">

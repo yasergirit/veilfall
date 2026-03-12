@@ -244,10 +244,10 @@ export default function HeroPanel() {
 
         {/* Selected Hero Detail */}
         {selectedHero && info && (
-          <div className="rounded-lg border border-[var(--ruin-grey)]/30 bg-[var(--veil-blue)]/40 p-6">
+          <div className="rounded-lg border border-[var(--ruin-grey)]/30 p-6" style={{ background: 'url(/assets/gui/panels/body_base.png) center/cover, rgba(26, 39, 68, 0.6)' }}>
             {/* Header */}
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-16 h-16 rounded-lg bg-[var(--veil-blue-deep)] flex items-center justify-center text-3xl border border-[var(--ruin-grey)]/30">
+              <div className="w-16 h-16 rounded-lg flex items-center justify-center text-3xl relative" style={{ background: 'url(/assets/gui/character-frame/player_portrait_frame.png) center/contain no-repeat' }}>
                 {info.icon}
               </div>
               <div className="flex-1">
@@ -276,14 +276,12 @@ export default function HeroPanel() {
                   <span className="text-[var(--parchment-dim)]">Experience</span>
                   <span className="text-[var(--parchment)]">{selectedHero.xp} / {selectedHero.level * 100}</span>
                 </div>
-                <div className="h-2 rounded-full bg-[var(--veil-blue-deep)]">
+                <div className="rpg-progress rounded-full">
                   <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${Math.min(100, (selectedHero.xp / (selectedHero.level * 100)) * 100)}%`,
-                      background: 'linear-gradient(90deg, var(--aether-violet), var(--aether-glow))',
-                    }}
+                    className="rpg-progress-fill rounded-full"
+                    style={{ width: `${Math.min(100, (selectedHero.xp / (selectedHero.level * 100)) * 100)}%` }}
                   />
+                  <div className="rpg-progress-gloss" />
                 </div>
               </div>
               <div>
@@ -418,11 +416,12 @@ export default function HeroPanel() {
                     <button
                       key={slot}
                       onClick={() => setEquipMenuSlot(equipMenuSlot === slot ? null : slot)}
-                      className={`p-3 rounded-lg border-2 border-dashed text-center transition-all ${
+                      className={`p-3 rounded-lg text-center transition-all ${
                         equipMenuSlot === slot
-                          ? 'border-[var(--ember-gold)]/50 bg-[var(--ember-gold)]/5'
-                          : 'border-[var(--ruin-grey)]/20 bg-[var(--veil-blue-deep)]/30 hover:border-[var(--aether-violet)]/30'
+                          ? 'border-2 border-[var(--ember-gold)]/50 bg-[var(--ember-gold)]/5'
+                          : 'hover:border-[var(--aether-violet)]/30'
                       }`}
+                      style={{ background: equipMenuSlot !== slot ? 'url(/assets/gui/equipment-slots/slot_frame.png) center/contain no-repeat' : undefined }}
                     >
                       <span className="text-lg opacity-30">{icon}</span>
                       <div className="text-[10px] text-[var(--ruin-grey)] mt-1">{label}</div>

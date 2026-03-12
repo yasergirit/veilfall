@@ -10,12 +10,12 @@ import { api } from '../lib/api.js';
 
 const RESOURCE_ORDER = ['food', 'wood', 'stone', 'iron', 'aether_stone'] as const;
 
-const RESOURCE_ICONS: Record<string, string> = {
-  food: '\u{1F33E}',
-  wood: '\u{1FAB5}',
-  stone: '\u{1FAA8}',
-  iron: '\u{2699}',
-  aether_stone: '\u{1F48E}',
+const RESOURCE_ICON_PATHS: Record<string, string> = {
+  food: '/assets/gui/resources/item_corn.png',
+  wood: '/assets/gui/resources/item_oak_wood.png',
+  stone: '/assets/gui/resources/item_coal.png',
+  iron: '/assets/gui/resources/item_iron_bar.png',
+  aether_stone: '/assets/gui/resources/ability_beams.png',
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -184,7 +184,7 @@ export default function ResourceBar() {
     <div
       data-tutorial="resource-bar"
       className="flex items-center justify-between px-4 py-2 border-b border-[var(--ruin-grey)]/20"
-      style={{ background: 'rgba(26, 39, 68, 0.95)' }}
+      style={{ background: 'url(/assets/gui/panels/body_base.png) center/cover, rgba(26, 39, 68, 0.95)' }}
     >
       {/* Resources */}
       <div className="flex gap-5">
@@ -193,7 +193,7 @@ export default function ResourceBar() {
           const rate = productionRates[key] ?? 0;
           return (
             <div key={key} className="flex items-center gap-1.5">
-              <span className="text-sm">{RESOURCE_ICONS[key]}</span>
+              <img src={RESOURCE_ICON_PATHS[key]} alt={key} className="resource-icon" />
               <span className="text-xs text-[var(--parchment-dim)]">{RESOURCE_LABELS[key]}</span>
               <span className="text-sm font-semibold text-[var(--parchment)] tabular-nums">
                 {Math.floor(value as number).toLocaleString()}
@@ -268,7 +268,7 @@ export default function ResourceBar() {
             </button>
             {showResetConfirm && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-[var(--veil-blue)] border border-red-700/50 rounded-lg p-6 max-w-sm mx-4">
+                <div className="rpg-confirm rounded-lg max-w-sm mx-4">
                   <h3 className="text-red-400 font-bold mb-3">Confirm Game Reset</h3>
                   <p className="text-[var(--parchment-dim)] text-sm mb-6">
                     This will permanently delete all player data, settlements, heroes, and progress. This action cannot be undone.
