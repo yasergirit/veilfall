@@ -220,9 +220,9 @@ export default function ChatPanel() {
       {/* Collapsed Bar / Header */}
       <button
         onClick={handleToggle}
-        className="flex items-center justify-between px-3 h-8 shrink-0 text-sm transition-all hover:brightness-110"
+        className="flex items-center justify-between px-6 h-9 shrink-0 text-sm transition-all hover:brightness-110"
         style={{
-          background: 'url(/assets/gui/chat/channel_active.png) center/100% 100% no-repeat',
+          background: 'url(/assets/gui/chat/heading_bar.png) center/100% 100% no-repeat',
           border: 'none',
         }}
       >
