@@ -164,7 +164,19 @@ export default function HeroPanel() {
   const heroAbilities = selectedHero
     ? abilities.filter((a) => a.heroClass === selectedHero.heroClass || a.heroClass === 'universal')
     : [];
-  const heroEquipment = selectedHero?.equipment ?? {};
+  // Server returns equipment as string IDs — resolve them to item objects
+  const rawEquipment = selectedHero?.equipment ?? {};
+  const heroEquipment: Record<string, EquipmentItem | null> = {};
+  for (const slot of ['weapon', 'armor', 'accessory', 'relic']) {
+    const val = rawEquipment[slot];
+    if (val && typeof val === 'string') {
+      heroEquipment[slot] = inventoryItems.find((i) => i.id === val) ?? null;
+    } else if (val && typeof val === 'object') {
+      heroEquipment[slot] = val as EquipmentItem;
+    } else {
+      heroEquipment[slot] = null;
+    }
+  }
 
   // Derive stats with defaults based on hero level and class
   const getHeroStats = (hero: Hero): Record<string, number> => {
