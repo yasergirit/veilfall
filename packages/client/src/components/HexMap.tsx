@@ -510,8 +510,10 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    const scale = hexSize / 128;
-    const imgW = TILE_W * scale;
+    // Scale so asset width matches pointy-top hex width (sqrt(3) * hexSize)
+    const hexWidth = Math.sqrt(3) * hexSize;
+    const scale = hexWidth / TILE_W;
+    const imgW = TILE_W * scale; // = hexWidth
     const imgH = TILE_H * scale;
     const faceOffY = imgH * FACE_CENTER_Y;
 
