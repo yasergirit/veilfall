@@ -29,7 +29,7 @@ const HERO_CLASS_LEVEL1_ABILITY: Record<string, string> = {
 const registerSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
   email: z.string().email(),
-  password: z.string().min(8).max(128),
+  password: z.string().min(6).max(128),
   faction: z.enum(['ironveil', 'aetheri', 'thornwatch', 'ashen']),
   settlementName: z.string().min(2).max(30),
 });
@@ -45,7 +45,7 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   token: z.string().uuid(),
-  password: z.string().min(8).max(128),
+  password: z.string().min(6).max(128),
 });
 
 export async function authRoutes(app: FastifyInstance) {

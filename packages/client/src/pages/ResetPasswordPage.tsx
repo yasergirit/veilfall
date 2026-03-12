@@ -20,8 +20,8 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -93,11 +93,11 @@ export default function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <input
                 type="password"
-                placeholder="New Password (min 8 characters)"
+                placeholder="New Password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={6}
                 className="w-full px-4 py-3 rounded bg-[var(--veil-blue-deep)] border border-[var(--ruin-grey)]/40 text-[var(--parchment)] placeholder-[var(--ruin-grey)] focus:border-[var(--aether-violet)] focus:outline-none transition-colors"
               />
 
@@ -107,7 +107,7 @@ export default function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={6}
                 className="w-full px-4 py-3 rounded bg-[var(--veil-blue-deep)] border border-[var(--ruin-grey)]/40 text-[var(--parchment)] placeholder-[var(--ruin-grey)] focus:border-[var(--aether-violet)] focus:outline-none transition-colors"
               />
 
