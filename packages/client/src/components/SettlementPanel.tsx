@@ -147,6 +147,7 @@ export default function SettlementPanel() {
   const [actionInProgress, setActionInProgress] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   const tcLevel = activeSettlement?.buildings.find((b) => b.type === 'town_center')?.level ?? 1;
 
@@ -292,15 +293,28 @@ export default function SettlementPanel() {
         )}
 
         {/* Building Categories */}
-        {groupedSlots.map((group) => (
+        {groupedSlots.map((group) => {
+          const isCollapsed = collapsedCategories.has(group.key);
+          return (
           <div key={group.key} className="mb-8">
-            {/* Category Header */}
-            <h3 className="text-base mb-3 flex items-center gap-2" style={{ fontFamily: 'Cinzel, serif' }}>
+            {/* Category Header — clickable to collapse */}
+            <button
+              type="button"
+              onClick={() => setCollapsedCategories((prev) => {
+                const next = new Set(prev);
+                if (next.has(group.key)) next.delete(group.key); else next.add(group.key);
+                return next;
+              })}
+              className="w-full text-base mb-3 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ fontFamily: 'Cinzel, serif', color: 'var(--ember-gold)', background: 'none', border: 'none', padding: 0 }}
+            >
               <span>{group.icon}</span>
-              <span>{group.label}</span>
-            </h3>
+              <span className="flex-1 text-left">{group.label}</span>
+              <span className="text-xs text-[var(--ruin-grey)] transition-transform duration-200" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</span>
+            </button>
 
             {/* Cards in category */}
+            {!isCollapsed && (
             <div data-tutorial="building-grid" role="list" aria-label={group.label} className="flex flex-col gap-3">
               {group.slots.map((slot) => {
                 const existing = activeSettlement?.buildings.find((b) => b.type === slot.type);
@@ -586,8 +600,10 @@ export default function SettlementPanel() {
                 );
               })}
             </div>
+            )}
           </div>
-        ))}
+          );
+        })}
 
         {/* Military Section - UnitPanel */}
         {activeSettlement && hasBarracks && (
