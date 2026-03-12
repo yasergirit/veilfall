@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  /* Veilfall Color System */
+  --veil-blue: #1A2744;
+  --veil-blue-deep: #0a0e1a;
+  --aether-violet: #7B4FBF;
+  --aether-glow: #4A7BFF;
+  --ember-gold: #D4A843;
+  --ruin-grey: #6B6E73;
+  --parchment: #E8DCC8;
+  --parchment-dim: #b8a98c;
+
+  /* Faction Colors */
+  --ironveil: #4A6670;
+  --ironveil-accent: #B8622A;
+  --aetheri: #9B6ED4;
+  --aetheri-accent: #C0E0FF;
+  --thornwatch: #3A6B35;
+  --thornwatch-accent: #8B1A1A;
+  --ashen: #2C2C2C;
+  --ashen-accent: #E87D20;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--veil-blue-deep);
+  color: var(--parchment);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cinzel', serif;
+  color: var(--ember-gold);
+}
+
+/* Aether glow animation */
+@keyframes aether-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.aether-glow {
+  animation: aether-pulse 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px var(--aether-violet));
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--veil-blue);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ruin-grey);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aether-violet);
+}

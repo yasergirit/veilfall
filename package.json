@@ -1,0 +1,32 @@
+{
+  "name": "veilfall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VEILFALL - Browser-based grand strategy MMO",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm -w packages/client run dev",
+    "dev:server": "npm -w packages/server run dev",
+    "build": "npm run build:shared && npm run build:engine && npm run build:server && npm run build:client",
+    "build:shared": "npm -w packages/shared run build",
+    "build:engine": "npm -w packages/game-engine run build",
+    "build:server": "npm -w packages/server run build",
+    "build:client": "npm -w packages/client run build",
+    "db:migrate": "npm -w packages/server run db:migrate",
+    "db:seed": "npm -w packages/server run db:seed",
+    "lint": "eslint packages/*/src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0",
+    "eslint": "^9.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
