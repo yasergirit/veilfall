@@ -288,26 +288,13 @@ export default function SettlementPanel() {
           </div>
         )}
 
-        {/* Building Cards - Horizontal Scrollable Row */}
+        {/* Building Cards - Vertical Stack */}
         <h3 className="text-lg mb-4" style={{ fontFamily: 'Cinzel, serif' }}>Buildings</h3>
         <div
           data-tutorial="building-grid"
           role="list"
           aria-label="Buildings"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            const container = e.currentTarget;
-            if (e.key === 'ArrowRight') {
-              container.scrollBy({ left: 436, behavior: 'smooth' });
-              e.preventDefault();
-            }
-            if (e.key === 'ArrowLeft') {
-              container.scrollBy({ left: -436, behavior: 'smooth' });
-              e.preventDefault();
-            }
-          }}
-          className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth focus-visible:outline-2 focus-visible:outline-[var(--aether-violet)] focus-visible:outline-offset-2 focus-visible:rounded-lg"
-          style={{ scrollbarColor: 'var(--ruin-grey) transparent', scrollbarWidth: 'thin', scrollPaddingLeft: '0px' }}
+          className="flex flex-col gap-4"
         >
           {visibleSlots.map((slot) => {
             const existing = activeSettlement?.buildings.find((b) => b.type === slot.type);
@@ -396,11 +383,11 @@ export default function SettlementPanel() {
                 aria-label={`${slot.name}, Level ${currentLevel}${isMaxLevel ? ', fully upgraded' : ''}`}
                 tabIndex={isClickable ? 0 : undefined}
                 onKeyDown={(e) => { if (e.key === 'Enter' && isClickable) handleCardClick(); }}
-                className={`group relative select-none flex-shrink-0 snap-start transition-all duration-200 ${
+                className={`group relative select-none transition-all duration-200 ${
                   isClickable ? 'cursor-pointer hover:-translate-y-1 hover:shadow-lg active:translate-y-0 active:scale-[0.98]' : ''
                 } ${isQueued ? 'animate-[queue-pulse_2s_ease-in-out_infinite]' : ''}${!tcUnlocked ? ' opacity-40 grayscale' : ''}`}
                 style={{
-                  width: '420px',
+                  width: '100%',
                   minHeight: '200px',
                   borderRadius: '12px',
                   border: `1.5px solid color-mix(in srgb, ${cardBorderColor} ${parseFloat(cardBorderOpacity) * 100}%, transparent)`,
