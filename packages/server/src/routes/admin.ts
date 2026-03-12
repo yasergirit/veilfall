@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { mockDb } from '../db/mock-db.js';
 import { STARTING_RESOURCES } from '@veilfall/shared';
@@ -117,5 +118,47 @@ export async function adminRoutes(app: FastifyInstance) {
       console.error('[Admin] Reset failed:', error);
       return reply.status(500).send({ error: 'Reset failed' });
     }
+  });
+
+  // POST /grant — Admin: grant resources to a player by username
+  const grantSchema = z.object({
+    username: z.string(),
+    resources: z.record(z.string(), z.number().positive()),
+  });
+
+  app.post('/grant', { preHandler: requireAuth }, async (request, reply) => {
+    const player = request.user;
+
+    const ADMIN_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+    const dbPlayer = mockDb.players.get(player.id);
+    const isAdmin = player.role === 'admin'
+      || ADMIN_EMAILS.includes(player.email)
+      || (dbPlayer && (dbPlayer.role === 'admin' || ADMIN_EMAILS.includes(dbPlayer.email)));
+
+    if (!isAdmin) {
+      return reply.status(403).send({ error: 'Admin only' });
+    }
+
+    const { username, resources } = grantSchema.parse(request.body);
+    const target = mockDb.getPlayerByUsername(username);
+    if (!target) {
+      return reply.status(404).send({ error: `Player '${username}' not found` });
+    }
+
+    const settlements = mockDb.getSettlementsByPlayer(target.id);
+    if (settlements.length === 0) {
+      return reply.status(404).send({ error: `Player '${username}' has no settlements` });
+    }
+
+    const settlement = settlements[0];
+    for (const [resource, amount] of Object.entries(resources)) {
+      if (settlement.resources[resource] != null) {
+        settlement.resources[resource] += amount;
+      }
+    }
+    mockDb.updateSettlement(settlement.id, { resources: settlement.resources });
+
+    console.log(`[Admin] ${player.username} granted resources to ${username}:`, resources);
+    return { message: `Granted resources to ${username}`, resources: settlement.resources };
   });
 }

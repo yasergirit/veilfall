@@ -251,7 +251,7 @@ export async function settlementRoutes(app: FastifyInstance) {
   // Debug: Add resources (tester/admin only, with email fallback for old tokens)
   const ADMIN_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
   const TESTER_EMAILS = ['yasergirit@gmail.com'];
-  const addResourceSchema = z.object({ resource: z.string() });
+  const addResourceSchema = z.object({ resource: z.string(), amount: z.number().positive().optional() });
 
   app.post('/:settlementId/add-resource', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
@@ -265,7 +265,7 @@ export async function settlementRoutes(app: FastifyInstance) {
     }
 
     const { settlementId } = request.params as { settlementId: string };
-    const { resource } = addResourceSchema.parse(request.body);
+    const { resource, amount = 1000 } = addResourceSchema.parse(request.body);
 
     const settlement = mockDb.getSettlement(settlementId);
     if (!settlement || settlement.playerId !== player.id) {
@@ -276,10 +276,10 @@ export async function settlementRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid resource type' });
     }
 
-    settlement.resources[resource] += 1000;
+    settlement.resources[resource] += amount;
     mockDb.updateSettlement(settlementId, { resources: settlement.resources });
 
-    return { message: `+1000 ${resource}`, resources: settlement.resources };
+    return { message: `+${amount} ${resource}`, resources: settlement.resources };
   });
 
   // Found a new settlement
