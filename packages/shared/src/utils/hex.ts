@@ -47,17 +47,17 @@ export function hexesInRange(center: HexCoord, radius: number): HexCoord[] {
   return results;
 }
 
-/** Convert cube coords to pixel position (for flat-top hexes) */
+/** Convert cube coords to pixel position (pointy-top hexes / honeycomb) */
 export function hexToPixel(coord: HexCoord, size: number): { x: number; y: number } {
-  const x = size * (3 / 2 * coord.q);
-  const y = size * (Math.sqrt(3) / 2 * coord.q + Math.sqrt(3) * coord.r);
+  const x = size * (Math.sqrt(3) * coord.q + Math.sqrt(3) / 2 * coord.r);
+  const y = size * (3 / 2 * coord.r);
   return { x, y };
 }
 
-/** Convert pixel position to nearest hex (flat-top) */
+/** Convert pixel position to nearest hex (pointy-top) */
 export function pixelToHex(x: number, y: number, size: number): HexCoord {
-  const q = (2 / 3 * x) / size;
-  const r = (-1 / 3 * x + Math.sqrt(3) / 3 * y) / size;
+  const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / size;
+  const r = (2 / 3 * y) / size;
   return hexRound({ q, r, s: -q - r });
 }
 

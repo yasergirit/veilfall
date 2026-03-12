@@ -8,7 +8,8 @@ const HEX_SIZE = 42;
 const MAP_RADIUS = 15;
 const MARCH_SPEED_SECONDS_PER_HEX = 30;
 
-// Tile images are 256x384 (isometric hex with depth)
+// Tile images are 256x384 (isometric flat-top hex with depth)
+// For pointy-top rendering, we rotate and clip them
 const TILE_W = 256;
 const TILE_H = 384;
 // Hex face center sits at ~47% from top of the isometric tile image
@@ -341,7 +342,7 @@ function generateDemoMap(radius: number, settlementQ: number, settlementR: numbe
 function drawHexPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i);
+    const angle = (Math.PI / 180) * (60 * i + 30);
     const x = cx + size * Math.cos(angle);
     const y = cy + size * Math.sin(angle);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -538,8 +539,17 @@ export default function HexMap() {
       const tileImg = getTileImage(tileTerrain);
 
       if (tileImg) {
-        // Draw isometric tile image (256x384) with depth below hex face
-        ctx.drawImage(tileImg, px - imgW / 2, py - faceOffY, imgW, imgH);
+        // Clip tile image to pointy-top hex shape
+        ctx.save();
+        drawHexPath(ctx, px, py, HEX_SIZE);
+        ctx.clip();
+        // Draw tile image rotated -30° to convert flat-top asset to pointy-top
+        ctx.translate(px, py);
+        ctx.rotate(-Math.PI / 6);
+        ctx.drawImage(tileImg, -imgW / 2, -faceOffY, imgW, imgH);
+        ctx.rotate(Math.PI / 6);
+        ctx.translate(-px, -py);
+        ctx.restore();
 
         // Draw highlight/selection outline on top of tile image
         if (state === 'selected' || state === 'hovered') {

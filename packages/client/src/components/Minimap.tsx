@@ -29,20 +29,15 @@ const EVENT_COLORS: Record<string, string> = {
 
 /**
  * Convert hex (q, r) to minimap pixel coordinates.
- * Uses the same flat-top hex layout as the main map:
- *   px_x = size * (3/2 * q)
- *   px_y = size * (sqrt(3)/2 * q + sqrt(3) * r)
+ * Uses pointy-top hex layout (honeycomb):
+ *   px_x = size * (sqrt(3) * q + sqrt(3)/2 * r)
+ *   px_y = size * (3/2 * r)
  * We normalize so that the coordinate range [-20..20] maps to [0..CANVAS_AREA].
  */
 function hexToMinimap(q: number, r: number): { x: number; y: number } {
-  // Approximate pixel position using the hex layout formula with unit size
-  const rawX = 1.5 * q;
-  const rawY = Math.sqrt(3) / 2 * q + Math.sqrt(3) * r;
+  const rawX = Math.sqrt(3) * q + Math.sqrt(3) / 2 * r;
+  const rawY = 1.5 * r;
 
-  // The max extent for q,r in [-20,20]:
-  // rawX ranges roughly from -30 to 30
-  // rawY ranges roughly from -34.6 to 34.6
-  // We use a uniform scale to keep aspect ratio and center everything
   const maxExtent = Math.sqrt(3) * MAP_RANGE; // ~34.64
   const scale = CANVAS_AREA / (maxExtent * 2);
 
@@ -59,11 +54,11 @@ function minimapToHex(px: number, py: number): { q: number; r: number } {
   const rawX = (px - PADDING - CANVAS_AREA / 2) / scale;
   const rawY = (py - PADDING - LABEL_HEIGHT - (CANVAS_AREA - LABEL_HEIGHT) / 2) / scale;
 
-  // Reverse the hex-to-pixel formula:
-  // rawX = 1.5 * q  =>  q = rawX / 1.5
-  // rawY = sqrt(3)/2 * q + sqrt(3) * r  =>  r = (rawY - sqrt(3)/2 * q) / sqrt(3)
-  const q = rawX / 1.5;
-  const r = (rawY - (Math.sqrt(3) / 2) * q) / Math.sqrt(3);
+  // Reverse the pointy-top hex-to-pixel formula:
+  // rawX = sqrt(3) * q + sqrt(3)/2 * r
+  // rawY = 1.5 * r  =>  r = rawY / 1.5
+  const r = rawY / 1.5;
+  const q = (rawX - Math.sqrt(3) / 2 * r) / Math.sqrt(3);
 
   return { q: Math.round(q), r: Math.round(r) };
 }
