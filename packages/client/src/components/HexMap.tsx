@@ -511,56 +511,93 @@ export default function HexMap() {
 
     const hexSize = HEX_SIZE * zoom;
     const scale = hexSize / 128;
-    const imgW = TILE_W * scale; // = 2 * HEX_SIZE = 84
-    const imgH = TILE_H * scale; // = 3 * HEX_SIZE = 126 (isometric depth)
-    const faceOffY = imgH * FACE_CENTER_Y; // hex face center offset from image top
+    const imgW = TILE_W * scale;
+    const imgH = TILE_H * scale;
+    const faceOffY = imgH * FACE_CENTER_Y;
 
-    // Sort tiles: high r (bottom of screen) drawn first, low r (top) drawn last
-    // so upward-extending tile images aren't clipped by rows below
+    // Sort tiles ascending by r: low r (top of screen) drawn first,
+    // high r (bottom of screen) drawn last = rendered on top (isometric front)
     const sortedTiles = [...tilesRef.current].sort((a, b) => {
-      if (a.r !== b.r) return b.r - a.r;
-      return b.q - a.q;
+      if (a.r !== b.r) return a.r - b.r;
+      return a.q - b.q;
     });
 
+    // Helper: check if tile is on screen
+    const isOnScreen = (px: number, py: number) =>
+      px > -hexSize * 3 && px < canvas.clientWidth + hexSize * 3 &&
+      py > -hexSize * 3 && py < canvas.clientHeight + hexSize * 3;
+
+    // ═══════════════════════════════════════════════════
+    // LAYER 1: Tile asset images (back-to-front by row)
+    // ═══════════════════════════════════════════════════
     for (const tile of sortedTiles) {
       const { x, y } = hexToPixel(tile, hexSize);
       const px = centerX + x;
       const py = centerY + y;
-
-      if (px < -hexSize * 2 || px > canvas.clientWidth + hexSize * 2) continue;
-      if (py < -hexSize * 2 || py > canvas.clientHeight + hexSize * 2) continue;
-
-      const key = hexKey(tile);
-      const isSelected = selectedTile && hexKey(selectedTile) === key;
-      const isHovered = hoveredHex === key;
-      const state: 'normal' | 'hovered' | 'selected' = isSelected ? 'selected' : isHovered ? 'hovered' : 'normal';
+      if (!isOnScreen(px, py)) continue;
 
       const isOwnSettlement = tile.q === sq && tile.r === sr;
-
-      // Determine which tile image to use
       const tileTerrain = isOwnSettlement ? 'settlement' : tile.terrain;
       const tileImg = getTileImage(tileTerrain);
 
       if (tileImg) {
-        // Draw tile image without clipping — allows isometric layering (back tiles behind front)
+        // Draw tile image without clipping — overflow for immersion
         ctx.drawImage(tileImg, px - imgW / 2, py - faceOffY, imgW, imgH);
-
-        // Draw highlight/selection outline on top of tile image
-        if (state === 'selected' || state === 'hovered') {
-          drawHexOutline(ctx, px, py, hexSize - 1, state);
-        }
       } else {
         // Fallback: flat colored hex
         const color = TERRAIN_COLORS[tile.terrain] || '#2a2a2a';
-        drawHex(ctx, px, py, hexSize - 1, color, state);
+        drawHex(ctx, px, py, hexSize - 1, color, 'normal');
       }
+    }
 
-      // Determine if tile is visible (fog of war)
+    // ═══════════════════════════════════════════════════
+    // LAYER 2: Hex grid overlay (pointy-top outlines)
+    // ═══════════════════════════════════════════════════
+    ctx.strokeStyle = 'rgba(232, 220, 200, 0.12)';
+    ctx.lineWidth = 1;
+    for (const tile of sortedTiles) {
+      const { x, y } = hexToPixel(tile, hexSize);
+      const px = centerX + x;
+      const py = centerY + y;
+      if (!isOnScreen(px, py)) continue;
+
+      drawHexPath(ctx, px, py, hexSize);
+      ctx.stroke();
+    }
+
+    // ═══════════════════════════════════════════════════
+    // LAYER 3: Selection/hover highlights
+    // ═══════════════════════════════════════════════════
+    for (const tile of sortedTiles) {
+      const key = hexKey(tile);
+      const isSelected = selectedTile && hexKey(selectedTile) === key;
+      const isHovered = hoveredHex === key;
+      if (!isSelected && !isHovered) continue;
+
+      const { x, y } = hexToPixel(tile, hexSize);
+      const px = centerX + x;
+      const py = centerY + y;
+      if (!isOnScreen(px, py)) continue;
+
+      const state: 'hovered' | 'selected' = isSelected ? 'selected' : 'hovered';
+      drawHexOutline(ctx, px, py, hexSize - 1, state);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // LAYER 4: Markers, events, settlement labels
+    // ═══════════════════════════════════════════════════
+    for (const tile of sortedTiles) {
+      const { x, y } = hexToPixel(tile, hexSize);
+      const px = centerX + x;
+      const py = centerY + y;
+      if (!isOnScreen(px, py)) continue;
+
+      const isOwnSettlement = tile.q === sq && tile.r === sr;
       const tileVisible = visibleTiles.size === 0 || visibleTiles.has(`${tile.q},${tile.r}`);
 
-      // Settlement marker (own settlement always visible)
+      // Settlement marker
       if (isOwnSettlement) {
-        // If tile image not loaded, show fallback castle icon
+        const tileImg = getTileImage('settlement');
         if (!tileImg) {
           ctx.fillStyle = '#D4A843';
           ctx.beginPath();
@@ -573,7 +610,6 @@ export default function HexMap() {
           ctx.fillText('\u{1F3F0}', px, py);
         }
 
-        // Settlement name label
         ctx.fillStyle = '#E8DCC8';
         ctx.font = 'bold 10px Inter';
         ctx.textAlign = 'center';
@@ -581,10 +617,8 @@ export default function HexMap() {
         ctx.fillText(activeSettlement?.name ?? 'Home', px, py + hexSize * 0.55);
       }
 
-      // Only render tile details if the tile is visible
       if (tileVisible) {
-        // Ruins marker (only if no tile image)
-        if (tile.terrain === 'ruins' && !tileImg) {
+        if (tile.terrain === 'ruins' && !getTileImage('ruins')) {
           ctx.fillStyle = 'rgba(123, 79, 191, 0.5)';
           ctx.beginPath();
           ctx.arc(px, py, 5, 0, Math.PI * 2);
@@ -595,7 +629,6 @@ export default function HexMap() {
           ctx.fill();
         }
 
-        // Map event markers (always overlaid on tiles)
         const tileEvent = mapEvents.find((e) => e.q === tile.q && e.r === tile.r);
         if (tileEvent) {
           ctx.textAlign = 'center';
@@ -608,7 +641,6 @@ export default function HexMap() {
             ctx.font = '12px Inter';
             ctx.fillText('\u{1F4B0}', px, py);
           } else if (tileEvent.type === 'npc_camp') {
-            // Red tint glow behind the icon
             ctx.fillStyle = 'rgba(224, 85, 85, 0.2)';
             ctx.beginPath();
             ctx.arc(px, py, 10, 0, Math.PI * 2);
@@ -616,7 +648,6 @@ export default function HexMap() {
             ctx.font = '12px Inter';
             ctx.fillText('\u{2694}\u{FE0F}', px, py);
           } else if (tileEvent.type === 'aether_surge') {
-            // Purple glow behind the icon
             ctx.fillStyle = 'rgba(123, 79, 191, 0.25)';
             ctx.beginPath();
             ctx.arc(px, py, 12, 0, Math.PI * 2);
