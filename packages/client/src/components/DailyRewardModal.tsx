@@ -10,9 +10,9 @@ interface DailyRewardModalProps {
 
 interface DailyRewardStatus {
   currentDay: number;
-  claimedToday: boolean;
+  claimed: boolean;
   streak: number;
-  claimedDays: number[];
+  lastClaimDate: string | null;
 }
 
 interface DayReward {
@@ -125,7 +125,7 @@ export default function DailyRewardModal({ onClose, onClaim }: DailyRewardModalP
   }, [fetchStatus]);
 
   const handleClaim = async () => {
-    if (!status || status.claimedToday || claiming) return;
+    if (!status || status.claimed || claiming) return;
 
     setClaiming(true);
     setError(null);
@@ -137,11 +137,7 @@ export default function DailyRewardModal({ onClose, onClaim }: DailyRewardModalP
       setCelebrated(true);
       setStatus((prev) =>
         prev
-          ? {
-              ...prev,
-              claimedToday: true,
-              claimedDays: [...prev.claimedDays, prev.currentDay],
-            }
+          ? { ...prev, claimed: true }
           : prev,
       );
 
@@ -177,9 +173,8 @@ export default function DailyRewardModal({ onClose, onClaim }: DailyRewardModalP
 
   const currentDay = status?.currentDay ?? 1;
   const cycleDayIndex = ((currentDay - 1) % 7) + 1;
-  const claimedToday = status?.claimedToday ?? false;
+  const claimedToday = status?.claimed ?? false;
   const streak = status?.streak ?? 0;
-  const claimedDays = status?.claimedDays ?? [];
 
   function getDayStatus(day: number): 'claimed' | 'today' | 'future' {
     if (day < cycleDayIndex) return 'claimed';

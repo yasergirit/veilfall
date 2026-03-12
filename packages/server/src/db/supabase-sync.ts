@@ -14,6 +14,7 @@ import type {
   MockAlliance, MockDiplomacy, MockMessage, MockEvent,
   MockBattleReport, MockMapEvent, MockTradeOffer, MockSpyMission,
   MockSeasonalEvent, MockEventProgress, MockMail, MockHeroQuest, MockWorldBoss,
+  MockDailyReward,
 } from './mock-db.js';
 
 let syncEnabled = false;
@@ -333,6 +334,23 @@ export async function loadFromSupabase(): Promise<void> {
     }
     console.log(`[Supabase] Loaded ${heroQuests?.length ?? 0} active hero quests`);
 
+    // Daily rewards (table may not exist yet — gracefully skip)
+    const { data: dailyRewards, error: drError } = await supabase.from('daily_rewards').select('*');
+    if (!drError) {
+      for (const row of dailyRewards ?? []) {
+        mockDb.dailyRewards.set(row.player_id, {
+          playerId: row.player_id,
+          currentDay: row.current_day,
+          streak: row.streak,
+          lastClaimDate: row.last_claim_date,
+          totalClaimed: row.total_claimed,
+        });
+      }
+      console.log(`[Supabase] Loaded ${dailyRewards?.length ?? 0} daily reward records`);
+    } else {
+      console.log(`[Supabase] Skipping daily_rewards (table may not exist yet)`);
+    }
+
     console.log('[Supabase] Data load complete!');
   } catch (err) {
     console.error('[Supabase] Failed to load data:', err);
@@ -460,6 +478,19 @@ export async function flushToSupabase(): Promise<void> {
     if (worldBosses.length > 0) {
       const { error } = await supabase.from('world_bosses').upsert(worldBosses, { onConflict: 'id' });
       if (error) console.error('[Supabase] WorldBoss sync error:', error.message);
+    }
+
+    // Upsert daily rewards
+    const dailyRewards = [...mockDb.dailyRewards.values()].map((d) => ({
+      player_id: d.playerId,
+      current_day: d.currentDay,
+      streak: d.streak,
+      last_claim_date: d.lastClaimDate,
+      total_claimed: d.totalClaimed,
+    }));
+    if (dailyRewards.length > 0) {
+      const { error } = await supabase.from('daily_rewards').upsert(dailyRewards, { onConflict: 'player_id' });
+      if (error) console.error('[Supabase] DailyReward sync error:', error.message);
     }
 
     console.log(`[Supabase] Synced: ${players.length} players, ${settlements.length} settlements, ${heroes.length} heroes, ${marches.length} marches`);

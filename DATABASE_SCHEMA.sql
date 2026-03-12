@@ -2387,4 +2387,16 @@ COMMENT ON TABLE legacy_rewards IS
 --     AND r.resource = rp.resource
 --     AND s.destroyed_at IS NULL;
 
+-- ============================================================================
+-- DAILY REWARDS
+-- ============================================================================
+
+CREATE TABLE daily_rewards (
+    player_id       UUID PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
+    current_day     INT NOT NULL DEFAULT 1 CHECK (current_day BETWEEN 1 AND 7),
+    streak          INT NOT NULL DEFAULT 0,
+    last_claim_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    total_claimed   INT NOT NULL DEFAULT 0
+);
+
 COMMIT;
