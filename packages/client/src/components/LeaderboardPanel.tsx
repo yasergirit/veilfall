@@ -110,7 +110,11 @@ export default function LeaderboardPanel() {
           setAllianceRankings(allianceRes.value.rankings ?? []);
         }
         if (myRankRes.status === 'fulfilled') {
-          setMyRank(myRankRes.value);
+          const data = myRankRes.value;
+          // /me returns { power: {rank,score}, military: {rank,score}, buildings: {rank,score} }
+          if (data?.power) {
+            setMyRank({ rank: data.power.rank, score: data.power.score, type: 'power' });
+          }
         }
       } else {
         const [rankRes, myRankRes] = await Promise.allSettled([
@@ -119,12 +123,22 @@ export default function LeaderboardPanel() {
         ]);
 
         if (rankRes.status === 'fulfilled') {
-          setRankings(rankRes.value.rankings ?? []);
+          // Backend sends playerId, frontend expects id
+          const mapped = (rankRes.value.rankings ?? []).map((r: any) => ({
+            ...r,
+            id: r.playerId ?? r.id,
+          }));
+          setRankings(mapped);
         } else {
           throw (rankRes as PromiseRejectedResult).reason;
         }
         if (myRankRes.status === 'fulfilled') {
-          setMyRank(myRankRes.value);
+          const data = myRankRes.value;
+          // Extract rank for current tab from /me response
+          const tabData = data?.[tab];
+          if (tabData) {
+            setMyRank({ rank: tabData.rank, score: tabData.score, type: tab });
+          }
         }
       }
     } catch (err: any) {
