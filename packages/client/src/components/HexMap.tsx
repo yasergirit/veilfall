@@ -7,8 +7,7 @@ const HEX_SIZE = 42;
 const MAP_RADIUS = 15;
 const MARCH_SPEED_SECONDS_PER_HEX = 30;
 
-// Hex face center: where in the tile the hex center sits (0 = top, 0.5 = middle, 1 = bottom)
-const FACE_CENTER_Y = 0.5;
+
 
 const TERRAIN_COLORS: Record<string, string> = {
   plains: '#4a6b2a', hills: '#3d5a28', forest: '#1a3a1a', woodlands: '#2d5a2d',
@@ -505,11 +504,12 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Uniform scale: fit to hex width, preserve aspect ratio (no distortion)
-    const IMG_ASPECT = 256 / 384; // native tile aspect ratio
-    const imgW = Math.sqrt(3) * hexSize; // match pointy-top hex width
-    const imgH = imgW / IMG_ASPECT;      // preserve aspect ratio (taller than hex, overflow ok)
-    const faceOffY = imgH * FACE_CENTER_Y;
+    // Scale to hex width, preserve aspect ratio — top overflow allowed
+    const IMG_ASPECT = 256 / 384;
+    const imgW = Math.sqrt(3) * hexSize;
+    const imgH = imgW / IMG_ASPECT;
+    // Anchor image bottom to hex bottom (py + hexSize), top overflows freely
+    const faceOffY = imgH - hexSize;
 
     // Sort tiles ascending by r: low r (top of screen) drawn first,
     // high r (bottom of screen) drawn last = rendered on top (isometric front)
