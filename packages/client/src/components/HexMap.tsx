@@ -7,12 +7,7 @@ const HEX_SIZE = 42;
 const MAP_RADIUS = 15;
 const MARCH_SPEED_SECONDS_PER_HEX = 30;
 
-// Tile images are 256x384 (isometric flat-top hex with depth)
-// For pointy-top rendering, we rotate and clip them
-const TILE_W = 256;
-const TILE_H = 384;
-// Hex face center: where in the tile image the hex face sits (0.47 = 47% from top)
-// This aligns the hex face in the image with the hex grid position
+// Hex face center: where in the tile the hex center sits (0 = top, 0.5 = middle, 1 = bottom)
 const FACE_CENTER_Y = 0.5;
 
 const TERRAIN_COLORS: Record<string, string> = {
@@ -510,12 +505,9 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Fit asset inside hex cell: width = sqrt(3)*hexSize, height = 2*hexSize
-    const hexW = Math.sqrt(3) * hexSize;
-    const hexH = 2 * hexSize;
-    const scale = Math.min(hexW / TILE_W, hexH / TILE_H);
-    const imgW = TILE_W * scale;
-    const imgH = TILE_H * scale;
+    // Stretch asset to exactly fill hex cell — no overlap, no gaps
+    const imgW = Math.sqrt(3) * hexSize; // pointy-top hex width
+    const imgH = 2 * hexSize;            // pointy-top hex height
     const faceOffY = imgH * FACE_CENTER_Y;
 
     // Sort tiles ascending by r: low r (top of screen) drawn first,
