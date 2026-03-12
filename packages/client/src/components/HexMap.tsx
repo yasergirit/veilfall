@@ -12,8 +12,8 @@ const MARCH_SPEED_SECONDS_PER_HEX = 30;
 // For pointy-top rendering, we rotate and clip them
 const TILE_W = 256;
 const TILE_H = 384;
-// Hex face center sits at ~47% from top of the isometric tile image
-const FACE_CENTER_Y = 0.55;
+// Hex face center offset — higher value = image drawn higher above hex center
+const FACE_CENTER_Y = 0.72;
 
 const TERRAIN_COLORS: Record<string, string> = {
   plains: '#4a6b2a', hills: '#3d5a28', forest: '#1a3a1a', woodlands: '#2d5a2d',
@@ -539,23 +539,12 @@ export default function HexMap() {
       const tileImg = getTileImage(tileTerrain);
 
       if (tileImg) {
-        // Clip tile image to pointy-top hex shape
-        ctx.save();
-        drawHexPath(ctx, px, py, HEX_SIZE);
-        ctx.clip();
-        // Draw tile image straight (no rotation)
+        // Draw tile image without clipping — allows isometric layering (back tiles behind front)
         ctx.drawImage(tileImg, px - imgW / 2, py - faceOffY, imgW, imgH);
-        ctx.restore();
 
         // Draw highlight/selection outline on top of tile image
         if (state === 'selected' || state === 'hovered') {
           drawHexOutline(ctx, px, py, HEX_SIZE - 1, state);
-        } else {
-          // Subtle border for normal tiles
-          drawHexPath(ctx, px, py, HEX_SIZE - 1);
-          ctx.strokeStyle = 'rgba(107, 110, 115, 0.25)';
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
         }
       } else {
         // Fallback: flat colored hex
