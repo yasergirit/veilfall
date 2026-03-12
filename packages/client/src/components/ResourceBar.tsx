@@ -101,7 +101,7 @@ export default function ResourceBar() {
       await api.addResource(activeSettlementId, resource);
       const data = await api.getSettlements();
       setSettlements(data.settlements);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('addResource failed:', err); }
   }, [activeSettlementId, setSettlements]);
   const [showSettlementDropdown, setShowSettlementDropdown] = useState(false);
   const settlementDropdownRef = useRef<HTMLDivElement>(null);

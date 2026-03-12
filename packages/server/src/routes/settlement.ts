@@ -254,15 +254,11 @@ export async function settlementRoutes(app: FastifyInstance) {
 
   app.post('/:settlementId/add-resource', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
-    // Check role from JWT, fallback to DB lookup for old tokens without email/role
-    let isTester = player.role === 'tester' || player.role === 'admin' || TESTER_EMAILS.includes(player.email);
-    if (!isTester) {
-      // Old JWT may lack email/role — check DB by player ID
-      for (const email of TESTER_EMAILS) {
-        const dbPlayer = mockDb.getPlayerByEmail(email);
-        if (dbPlayer && dbPlayer.id === player.id) { isTester = true; break; }
-      }
-    }
+    // Check role from JWT, fallback to DB lookup by player ID for old tokens
+    const dbPlayer = mockDb.players.get(player.id);
+    const isTester = player.role === 'tester' || player.role === 'admin'
+      || TESTER_EMAILS.includes(player.email)
+      || (dbPlayer && (dbPlayer.role === 'tester' || dbPlayer.role === 'admin' || TESTER_EMAILS.includes(dbPlayer.email)));
     if (!isTester) {
       return reply.status(403).send({ error: 'Not authorized' });
     }
