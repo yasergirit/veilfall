@@ -37,6 +37,7 @@ export default function QuestTracker() {
     story: [], daily: [], milestones: [],
   });
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [claimingAll, setClaimingAll] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchQuests = useCallback(async () => {
@@ -72,6 +73,46 @@ export default function QuestTracker() {
     } finally {
       setClaiming(null);
     }
+  };
+
+  const handleClaimAll = async () => {
+    const allQuests = [...quests.story, ...quests.daily, ...quests.milestones];
+    const claimable = allQuests.filter((q) => q.completed && !q.claimed);
+    if (claimable.length === 0) return;
+
+    setClaimingAll(true);
+    const aggregatedRewards: Record<string, number> = {};
+    const claimedTitles: string[] = [];
+
+    for (const quest of claimable) {
+      setClaiming(quest.id);
+      try {
+        await api.claimQuestReward(quest.id);
+        claimedTitles.push(quest.title);
+        if (quest.reward?.resources) {
+          for (const [res, amt] of Object.entries(quest.reward.resources)) {
+            aggregatedRewards[res] = (aggregatedRewards[res] ?? 0) + amt;
+          }
+        }
+        if (quest.reward?.xp) {
+          aggregatedRewards.xp = (aggregatedRewards.xp ?? 0) + quest.reward.xp;
+        }
+      } catch (err) {
+        console.error('[Quest] Claim failed:', quest.id, err);
+      }
+    }
+
+    setClaiming(null);
+    setClaimingAll(false);
+
+    if (claimedTitles.length > 0) {
+      const subtitle = claimedTitles.length === 1
+        ? claimedTitles[0]
+        : `${claimedTitles.length} quests completed`;
+      triggerRewardCelebration('Quests Complete!', aggregatedRewards, subtitle);
+    }
+
+    fetchQuests();
   };
 
   const currentQuests = tab === 'story' ? quests.story
@@ -140,6 +181,19 @@ export default function QuestTracker() {
               );
             })}
           </div>
+
+          {/* Claim All */}
+          {totalClaimable > 1 && (
+            <div className="px-3 pt-2">
+              <button
+                onClick={handleClaimAll}
+                disabled={claimingAll}
+                className="w-full text-[10px] font-bold py-1.5 rounded bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {claimingAll ? 'Claiming...' : `Claim All (${totalClaimable})`}
+              </button>
+            </div>
+          )}
 
           {/* Quest List */}
           <div className="p-3 max-h-64 overflow-y-auto space-y-2">
