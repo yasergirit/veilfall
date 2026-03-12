@@ -12,10 +12,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'settlement', label: 'Settlement', icon: '\u{1F3F0}', shortcut: '1' },
   { id: 'map', label: 'World Map', icon: '\u{1F5FA}', shortcut: '2' },
-  { id: 'heroes', label: 'Heroes', icon: '\u{2694}', shortcut: '3' },
+  { id: 'heroes', label: 'Heroes', icon: '\u{2694}\u{FE0F}', shortcut: '3' },
   { id: 'research', label: 'Research', icon: '\u{1F4DA}', shortcut: '4' },
   { id: 'marketplace', label: 'Marketplace', icon: '\u{1F3EA}', shortcut: '5' },
-  { id: 'alliance', label: 'Alliance', icon: '\u{1F6E1}', shortcut: '6' },
+  { id: 'alliance', label: 'Alliance', icon: '\u{1F6E1}\u{FE0F}', shortcut: '6' },
   { id: 'chronicle', label: 'Chronicle', icon: '\u{1F4DC}', shortcut: '7' },
   { id: 'leaderboard', label: 'Leaderboard', icon: '\u{1F3C6}', shortcut: '8' },
   { id: 'events', label: 'Events', icon: '\u{2B50}', shortcut: '9' },
