@@ -32,7 +32,7 @@ export default function Sidebar() {
 
   return (
     <div
-      className="w-16 flex flex-col items-center py-2 gap-0.5 border-r border-[var(--ruin-grey)]/20 overflow-y-auto overflow-x-hidden"
+      className="w-48 flex flex-col py-2 gap-0.5 border-r border-[var(--ruin-grey)]/20 overflow-y-auto overflow-x-hidden"
       style={{ background: 'rgba(26, 39, 68, 0.95)' }}
     >
       {NAV_ITEMS.map((item) => {
@@ -42,20 +42,25 @@ export default function Sidebar() {
             key={item.id}
             onClick={() => setActivePanel(item.id)}
             title={item.shortcut ? `${item.label} (${item.shortcut})` : item.label}
-            className={`w-14 flex flex-col items-center gap-0 py-1.5 px-1 rounded-lg transition-all shrink-0 ${
+            className={`flex items-center gap-2.5 py-2 px-3 mx-1 rounded-lg transition-all shrink-0 ${
               isActive
                 ? 'bg-[var(--aether-violet)]/20 border border-[var(--aether-violet)]/50'
                 : 'hover:bg-[var(--veil-blue)] border border-transparent'
             }`}
           >
-            <span className="text-base leading-none">{item.icon}</span>
+            <span className="text-lg leading-none shrink-0">{item.icon}</span>
             <span
-              className={`text-[8px] leading-tight mt-0.5 truncate w-full text-center ${
-                isActive ? 'text-[var(--aether-violet)]' : 'text-[var(--ruin-grey)]'
+              className={`text-xs font-medium truncate ${
+                isActive ? 'text-[var(--aether-violet)]' : 'text-[var(--parchment-dim)]'
               }`}
             >
               {item.label}
             </span>
+            {item.shortcut && (
+              <span className="ml-auto text-[10px] text-[var(--ruin-grey)]/50 tabular-nums shrink-0">
+                {item.shortcut}
+              </span>
+            )}
           </button>
         );
       })}
