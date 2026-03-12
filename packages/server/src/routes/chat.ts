@@ -43,6 +43,7 @@ export async function chatRoutes(app: FastifyInstance) {
       channelId,
       senderId: player.id,
       senderName: player.username,
+      senderFaction: existingPlayer.faction,
       content,
       timestamp: Date.now(),
     });

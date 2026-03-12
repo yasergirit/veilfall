@@ -136,6 +136,7 @@ export interface MockMessage {
   channelId: string;
   senderId: string;
   senderName: string;
+  senderFaction?: string;
   content: string;
   timestamp: number;
 }

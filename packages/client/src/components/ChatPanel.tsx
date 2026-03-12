@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import { useAuthStore } from '../stores/auth-store.js';
 import { useToastStore } from '../stores/toast-store.js';
+import { connectSocket, disconnectSocket, getSocket } from '../lib/socket.js';
 
 const FACTION_COLORS: Record<string, string> = {
   ironveil: '#4A6670',
@@ -17,6 +18,8 @@ interface ChatMessage {
   senderFaction: string;
   content: string;
   timestamp: string;
+  channelType?: string;
+  channelId?: string;
   isSystem?: boolean;
 }
 
@@ -33,66 +36,117 @@ function formatTime(timestamp: string): string {
 
 export default function ChatPanel() {
   const player = useAuthStore((s) => s.player);
+  const token = useAuthStore((s) => s.token);
   const [expanded, setExpanded] = useState(false);
   const [channels, setChannels] = useState<Channel[]>([
-    { type: 'world', id: 'world', label: 'World' },
+    { type: 'global', id: 'global', label: 'World' },
   ]);
-  const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'world', id: 'world', label: 'World' });
+  const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'global', id: 'global', label: 'World' });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(0);
   const addToast = useToastStore((s) => s.addToast);
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMessageIdRef = useRef<string | null>(null);
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const activeChannelRef = useRef(activeChannel);
+  activeChannelRef.current = activeChannel;
+
+  // Connect WebSocket on mount
+  useEffect(() => {
+    if (!token) return;
+
+    try {
+      const sock = connectSocket();
+
+      sock.on('connect', () => setConnected(true));
+      sock.on('disconnect', () => setConnected(false));
+
+      // Listen for real-time messages
+      sock.on('chat:message', (msg: ChatMessage) => {
+        const ch = activeChannelRef.current;
+        // Only add if it matches the active channel
+        if (msg.channelType === ch.type &&
+            (msg.channelType === 'global' ? msg.channelId === 'global' : msg.channelId === ch.id)) {
+          setMessages((prev) => {
+            // Deduplicate by id
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        }
+
+        // Track unread when collapsed
+        if (!expandedRef.current && msg.senderId !== player?.id) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      });
+
+      sock.on('online:count', (count: number) => {
+        setOnlineCount(count);
+      });
+    } catch {
+      // Socket connection failed — will fall back to polling
+    }
+
+    return () => {
+      disconnectSocket();
+      setConnected(false);
+    };
+  }, [token, player?.id]);
 
   // Fetch available channels
   useEffect(() => {
     api.getChatChannels().then((data) => {
       if (data.channels && data.channels.length > 0) {
-        setChannels(data.channels);
+        const mapped = data.channels.map((ch: any) => ({
+          type: ch.type,
+          id: ch.id,
+          label: ch.name || ch.id,
+        }));
+        setChannels(mapped);
       }
-    }).catch(() => {
-      // Keep default world channel
-    });
+    }).catch(() => {});
   }, []);
 
-  // Fetch messages for active channel
+  // Fetch message history when channel changes or panel expands
   const fetchMessages = useCallback(async () => {
     try {
       const data = await api.getChatMessages(activeChannel.type, activeChannel.id);
-      const msgs: ChatMessage[] = data.messages ?? [];
+      const msgs: ChatMessage[] = (data.messages ?? []).map((m: any) => ({
+        id: m.id,
+        senderId: m.senderId,
+        senderUsername: m.senderName || m.senderUsername,
+        senderFaction: m.senderFaction || '',
+        content: m.content,
+        timestamp: typeof m.timestamp === 'number' ? new Date(m.timestamp).toISOString() : m.timestamp,
+        channelType: m.channelType,
+        channelId: m.channelId,
+      }));
       setMessages(msgs);
-
-      // Track unread when collapsed
-      if (!expanded && msgs.length > 0) {
-        const lastId = msgs[msgs.length - 1].id;
-        if (lastMessageIdRef.current && lastId !== lastMessageIdRef.current) {
-          setUnreadCount((prev) => prev + 1);
-        }
-        lastMessageIdRef.current = lastId;
+      if (msgs.length > 0) {
+        lastMessageIdRef.current = msgs[msgs.length - 1].id;
       }
     } catch {
-      // Silently fail on poll
+      // Silently fail
     }
-  }, [activeChannel, expanded]);
+  }, [activeChannel]);
 
-  // Initial fetch and poll every 5s when expanded
+  // Load history on channel switch or expand
   useEffect(() => {
     fetchMessages();
-
-    if (expanded) {
-      pollRef.current = setInterval(fetchMessages, 5000);
-    }
-
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-    };
   }, [fetchMessages, expanded]);
+
+  // Fallback polling only if WebSocket is disconnected
+  useEffect(() => {
+    if (connected || !expanded) return;
+
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [connected, expanded, fetchMessages]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -119,15 +173,32 @@ export default function ChatPanel() {
     const content = input.trim();
     setInput('');
     setSending(true);
-    try {
-      await api.sendChatMessage(activeChannel.type, activeChannel.id, content);
-      await fetchMessages();
-    } catch {
-      // Restore input on failure
-      setInput(content);
-      addToast({ message: 'Failed to send message', type: 'error' });
-    } finally {
-      setSending(false);
+
+    const sock = getSocket();
+    if (sock?.connected) {
+      // Send via WebSocket (real-time)
+      sock.emit('chat:send', {
+        channelType: activeChannel.type,
+        channelId: activeChannel.id,
+        content,
+      }, (res: any) => {
+        if (res?.error) {
+          setInput(content);
+          addToast({ message: res.error, type: 'error' });
+        }
+        setSending(false);
+      });
+    } else {
+      // Fallback to REST
+      try {
+        await api.sendChatMessage(activeChannel.type, activeChannel.id, content);
+        await fetchMessages();
+      } catch {
+        setInput(content);
+        addToast({ message: 'Failed to send message', type: 'error' });
+      } finally {
+        setSending(false);
+      }
     }
   };
 
@@ -152,10 +223,18 @@ export default function ChatPanel() {
         className="flex items-center justify-between px-3 h-8 shrink-0 rounded-t-lg border border-b-0 border-[var(--ruin-grey)]/30 text-sm transition-colors hover:border-[var(--aether-violet)]/40"
         style={{ background: 'rgba(26, 39, 68, 0.95)' }}
       >
-        <span className="text-[var(--parchment-dim)] text-xs" style={{ fontFamily: 'Cinzel, serif' }}>
+        <span className="text-[var(--parchment-dim)] text-xs flex items-center gap-1.5" style={{ fontFamily: 'Cinzel, serif' }}>
           {expanded ? activeChannel.label + ' Chat' : 'World Chat'}
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: connected ? '#22c55e' : '#ef4444' }}
+            title={connected ? 'Connected' : 'Reconnecting...'}
+          />
         </span>
         <div className="flex items-center gap-2">
+          {onlineCount > 0 && expanded && (
+            <span className="text-[9px] text-[var(--ruin-grey)]">{onlineCount} online</span>
+          )}
           {!expanded && unreadCount > 0 && (
             <span className="w-5 h-5 rounded-full bg-[var(--ember-gold)] text-[var(--veil-blue-deep)] text-[10px] font-bold flex items-center justify-center">
               {unreadCount > 99 ? '99+' : unreadCount}
