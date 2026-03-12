@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth-store.js';
 import { useGameStore } from '../stores/game-store.js';
 import { api } from '../lib/api.js';
@@ -121,6 +122,8 @@ const ACHIEVEMENTS: AchievementDef[] = [
 /* ─── Component ─── */
 export default function ProfilePanel() {
   const player = useAuthStore((s) => s.player);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const settlements = useGameStore((s) => s.settlements);
 
   const [rankData, setRankData] = useState<any>(null);
@@ -416,6 +419,17 @@ export default function ProfilePanel() {
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Logout ── */}
+      <div className="mt-6">
+        <button
+          onClick={() => { logout(); navigate('/login'); }}
+          className="w-full py-3 rounded-xl border border-red-700/40 bg-red-950/30 text-red-400 text-sm font-semibold hover:bg-red-950/50 hover:border-red-600/60 hover:text-red-300 transition-colors"
+          style={{ fontFamily: 'Cinzel, serif' }}
+        >
+          Log Out
+        </button>
       </div>
     </div>
   );
