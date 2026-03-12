@@ -510,10 +510,10 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Use the larger scale to ensure no gaps between tiles
-    const scaleW = (Math.sqrt(3) * hexSize) / TILE_W; // fit hex width
-    const scaleH = (3 * hexSize) / TILE_H;            // fill vertical row spacing
-    const scale = Math.max(scaleW, scaleH);
+    // Fit asset inside hex cell: width = sqrt(3)*hexSize, height = 2*hexSize
+    const hexW = Math.sqrt(3) * hexSize;
+    const hexH = 2 * hexSize;
+    const scale = Math.min(hexW / TILE_W, hexH / TILE_H);
     const imgW = TILE_W * scale;
     const imgH = TILE_H * scale;
     const faceOffY = imgH * FACE_CENTER_Y;
