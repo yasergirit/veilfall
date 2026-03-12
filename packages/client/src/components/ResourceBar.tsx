@@ -120,17 +120,20 @@ export default function ResourceBar() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
+  const logout = useAuthStore((s) => s.logout);
+
   const handleReset = useCallback(async () => {
     setIsResetting(true);
     try {
       await api.resetGame();
-      // Reload page after successful reset
+      // Clear auth state and redirect to login since all player data is wiped
+      logout();
       window.location.reload();
     } catch (error) {
       setIsResetting(false);
       alert(`Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, []);
+  }, [logout]);
 
   // Aether cycle state
   const [aetherCycle, setAetherCycle] = useState<{ phase: string; nextChangeAt: number } | null>(null);
