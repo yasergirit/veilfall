@@ -66,6 +66,36 @@ const RESOURCE_ICONS: Record<string, string> = {
   food: '\u{1F33E}', wood: '\u{1FAB5}', stone: '\u{1FAA8}', iron: '\u{2699}', aether_stone: '\u{1F48E}',
 };
 
+// Production rates per level (resource, amount per hour)
+const PRODUCTION_RATES: Record<string, { resource: string; perHour: number }> = {
+  gathering_post: { resource: 'food', perHour: 30 },
+  woodcutter_lodge: { resource: 'wood', perHour: 25 },
+  stone_quarry: { resource: 'stone', perHour: 20 },
+  iron_mine: { resource: 'iron', perHour: 15 },
+  aether_extractor: { resource: 'aether_stone', perHour: 5 },
+};
+
+// What each building unlocks or provides at next levels
+const BUILDING_UNLOCKS: Record<string, string[]> = {
+  town_center: ['Lv2: Stone Quarry, Iron Mine, Barracks', 'Lv3: Aether Extractor, Hero Hall', 'Lv4: Advanced research', 'Lv5: Legendary structures'],
+  gathering_post: ['Higher levels: +30 food/hr each'],
+  woodcutter_lodge: ['Higher levels: +25 wood/hr each'],
+  stone_quarry: ['Higher levels: +20 stone/hr each'],
+  iron_mine: ['Higher levels: +15 iron/hr each'],
+  aether_extractor: ['Higher levels: +5 aether/hr each'],
+  militia_barracks: ['Lv1: Train Militia', 'Lv3: Train Archers', 'Lv5: Train Knights'],
+  palisade_wall: ['Each level: +10% defense bonus'],
+  scout_tower: ['Each level: +2 hex vision range'],
+  hero_hall: ['Lv1: Recruit heroes', 'Lv3: Hero abilities'],
+  warehouse: ['Each level: +500 storage capacity'],
+  marketplace: ['Lv1: Resource trading', 'Lv3: Bulk trades'],
+  spy_guild: ['Lv1: Basic espionage', 'Lv3: Advanced intel'],
+  ironveil_foundry: ['+Iron production', '+Unit armor bonus'],
+  aetheri_resonance: ['+Aether extraction', '+Research speed'],
+  thornwatch_rootway: ['+Food/Wood production', '+March speed'],
+  ashen_reliquary: ['+Stone production', '+Defensive power'],
+};
+
 function formatTime(seconds: number): string {
   if (seconds <= 0) return 'Done!';
   const m = Math.floor(seconds / 60);
@@ -174,14 +204,24 @@ export default function SettlementPanel() {
   const queueFull = (activeSettlement?.buildQueue?.length ?? 0) >= 2;
 
   // Filter building slots: only show faction buildings for the player's faction
-  const visibleSlots = BUILDING_SLOTS.filter((slot) => {
-    if (slot.factionOnly && slot.factionOnly !== player?.faction) return false;
-    return true;
-  });
+  // Sort by TC requirement (unlock order), then by original BUILDING_SLOTS order within same TC level
+  const visibleSlots = BUILDING_SLOTS
+    .filter((slot) => {
+      if (slot.factionOnly && slot.factionOnly !== player?.faction) return false;
+      return true;
+    })
+    .map((slot, origIdx) => ({ slot, origIdx }))
+    .sort((a, b) => {
+      const tcA = a.slot.tcRequired ?? TC_REQUIREMENTS[a.slot.type] ?? 0;
+      const tcB = b.slot.tcRequired ?? TC_REQUIREMENTS[b.slot.type] ?? 0;
+      if (tcA !== tcB) return tcA - tcB;
+      return a.origIdx - b.origIdx;
+    })
+    .map((item) => item.slot);
 
   return (
     <div className="h-full overflow-y-auto p-6">
-      <div className="max-w-4xl mx-auto pb-16">
+      <div className="max-w-7xl mx-auto pb-16">
         {/* Settlement Header */}
         <div className="mb-6 flex items-end justify-between">
           <div>
@@ -248,15 +288,20 @@ export default function SettlementPanel() {
           </div>
         )}
 
-        {/* Building Grid */}
+        {/* Building Cards - Horizontal Scrollable Row */}
         <h3 className="text-lg mb-4" style={{ fontFamily: 'Cinzel, serif' }}>Buildings</h3>
-        <div data-tutorial="building-grid" className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div
+          data-tutorial="building-grid"
+          className="flex gap-4 overflow-x-auto pb-4"
+          style={{ scrollbarColor: 'var(--ruin-grey) transparent', scrollbarWidth: 'thin' }}
+        >
           {visibleSlots.map((slot) => {
             const existing = activeSettlement?.buildings.find((b) => b.type === slot.type);
             const inQueue = activeSettlement?.buildQueue.find((b) => b.type === slot.type);
             const isBuilt = !!existing;
             const isQueued = !!inQueue;
             const isTownCenter = slot.type === 'town_center';
+            const currentLevel = existing?.level ?? 0;
 
             // Town Center level requirement
             const requiredTc = slot.tcRequired ?? TC_REQUIREMENTS[slot.type] ?? 1;
@@ -264,7 +309,7 @@ export default function SettlementPanel() {
 
             // Build cost & affordability
             const affordable = slot.cost && tcUnlocked ? canAfford(slot.cost) : false;
-            const canBuild = slot.buildable && !isBuilt && !isQueued && affordable && !queueFull && tcUnlocked;
+            const canBuildThis = slot.buildable && !isBuilt && !isQueued && affordable && !queueFull && tcUnlocked;
 
             // Upgrade logic
             let isMaxLevel = false;
@@ -288,130 +333,372 @@ export default function SettlementPanel() {
               }
             }
 
+            // For unbuilt buildings, show build cost as the "upgrade" cost
+            const displayCost = isBuilt ? upgradeCost : (slot.cost ?? null);
+            const displayTime = isBuilt ? upgradeTimeSeconds : (slot.time ?? null);
+
             const canAffordUpgrade = upgradeCost ? canAfford(upgradeCost) : false;
-            const canUpgrade = canAffordUpgrade && !actionInProgress && !isQueued && !queueFull;
+            const canUpgrade = isBuilt && canAffordUpgrade && !actionInProgress && !isQueued && !queueFull && !isMaxLevel;
+
+            const production = PRODUCTION_RATES[slot.type];
+            const unlocks = BUILDING_UNLOCKS[slot.type] ?? [];
 
             const handleCardClick = () => {
-              if (canBuild && !actionInProgress) {
+              if (canBuildThis && !actionInProgress) {
                 handleBuild(slot.type);
               } else if (canUpgrade) {
                 handleUpgrade(slot.type);
               }
             };
 
+            const isClickable = canBuildThis || canUpgrade;
+
+            // Card border/glow color logic
+            const cardBorderColor = isBuilt && isMaxLevel
+              ? 'var(--ember-gold)'
+              : isBuilt
+              ? '#22c55e'
+              : isQueued
+              ? 'var(--ember-gold)'
+              : !tcUnlocked
+              ? 'var(--ruin-grey)'
+              : 'var(--ruin-grey)';
+
+            const cardBorderOpacity = isBuilt && isMaxLevel
+              ? '0.5'
+              : isBuilt
+              ? '0.4'
+              : isQueued
+              ? '0.4'
+              : !tcUnlocked
+              ? '0.15'
+              : '0.3';
+
             return (
               <div
                 key={slot.type}
                 onClick={handleCardClick}
-                role={canBuild || canUpgrade ? 'button' : undefined}
-                tabIndex={canBuild || canUpgrade ? 0 : undefined}
-                onKeyDown={(e) => { if (e.key === 'Enter' && (canBuild || canUpgrade)) handleCardClick(); }}
-                className={`p-4 rounded-lg border text-left transition-all group relative select-none ${
-                  isBuilt
-                    ? 'border-green-700/40 bg-green-900/10'
-                    : isQueued
-                    ? 'border-[var(--ember-gold)]/40 bg-[var(--ember-gold)]/5'
-                    : !tcUnlocked
-                    ? 'border-[var(--ruin-grey)]/10 bg-[var(--veil-blue)]/10 opacity-40'
-                    : canBuild
-                    ? 'border-[var(--ruin-grey)]/30 bg-[var(--veil-blue)]/50 hover:border-[var(--aether-violet)]/60 hover:bg-[var(--aether-violet)]/10 cursor-pointer active:scale-[0.98]'
-                    : 'border-[var(--ruin-grey)]/20 bg-[var(--veil-blue)]/20 opacity-60'
-                }`}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onKeyDown={(e) => { if (e.key === 'Enter' && isClickable) handleCardClick(); }}
+                className={`group relative select-none flex-shrink-0 transition-all duration-200 ${
+                  isClickable ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]' : ''
+                } ${!tcUnlocked ? 'opacity-40' : ''}`}
+                style={{
+                  width: '420px',
+                  minHeight: '200px',
+                  borderRadius: '12px',
+                  border: `1.5px solid color-mix(in srgb, ${cardBorderColor} ${parseFloat(cardBorderOpacity) * 100}%, transparent)`,
+                  background: 'linear-gradient(135deg, rgba(15,12,20,0.95) 0%, rgba(25,20,35,0.9) 50%, rgba(15,12,20,0.95) 100%)',
+                  boxShadow: isBuilt
+                    ? `0 0 20px rgba(34,197,94,0.08), inset 0 1px 0 rgba(255,255,255,0.03)`
+                    : isClickable
+                    ? `0 0 20px rgba(139,92,246,0.1), inset 0 1px 0 rgba(255,255,255,0.03)`
+                    : `inset 0 1px 0 rgba(255,255,255,0.02)`,
+                }}
               >
-                {/* Status badge */}
-                {isBuilt && isMaxLevel && (
-                  <span className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded bg-[var(--ember-gold)]/20 text-[var(--ember-gold)] font-semibold">
-                    MAX
-                  </span>
-                )}
-                {isBuilt && !isMaxLevel && (
-                  <span className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded bg-green-800/50 text-green-300">
-                    Lv{existing.level}
-                  </span>
-                )}
-                {isQueued && (
-                  <span className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded bg-[var(--ember-gold)]/20 text-[var(--ember-gold)] animate-pulse">
-                    Building...
-                  </span>
-                )}
+                {/* Top decorative border accent */}
+                <div
+                  className="absolute top-0 left-4 right-4 h-[1px]"
+                  style={{
+                    background: isBuilt
+                      ? 'linear-gradient(90deg, transparent, rgba(34,197,94,0.4), transparent)'
+                      : 'linear-gradient(90deg, transparent, var(--ember-gold), transparent)',
+                    opacity: 0.4,
+                  }}
+                />
 
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">{slot.icon}</span>
-                  <div>
-                    <span className="text-sm font-medium text-[var(--parchment)] group-hover:text-[var(--ember-gold)] transition-colors">
-                      {slot.name}
-                    </span>
+                <div className="flex h-full">
+                  {/* LEFT: Building Icon Section */}
+                  <div
+                    className="flex flex-col items-center justify-center px-5 py-4 relative"
+                    style={{
+                      width: '100px',
+                      borderRight: '1px solid rgba(255,255,255,0.05)',
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)',
+                    }}
+                  >
+                    <span className="text-4xl mb-2 drop-shadow-lg">{slot.icon}</span>
+                    {/* Level Badge */}
+                    {isBuilt && (
+                      <span
+                        className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                        style={{
+                          fontFamily: 'Cinzel, serif',
+                          background: isMaxLevel
+                            ? 'linear-gradient(135deg, rgba(218,165,32,0.3), rgba(218,165,32,0.15))'
+                            : 'linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.15))',
+                          color: isMaxLevel ? 'var(--ember-gold)' : '#86efac',
+                          border: isMaxLevel
+                            ? '1px solid rgba(218,165,32,0.3)'
+                            : '1px solid rgba(34,197,94,0.3)',
+                        }}
+                      >
+                        {isMaxLevel ? 'MAX' : `Lv ${currentLevel}`}
+                      </span>
+                    )}
+                    {!isBuilt && !isQueued && tcUnlocked && (
+                      <span className="text-[10px] text-[var(--ruin-grey)] italic mt-1">Not Built</span>
+                    )}
+                    {isQueued && (
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full animate-pulse mt-1"
+                        style={{
+                          background: 'rgba(218,165,32,0.2)',
+                          color: 'var(--ember-gold)',
+                          border: '1px solid rgba(218,165,32,0.3)',
+                        }}
+                      >
+                        Building...
+                      </span>
+                    )}
                     {slot.factionOnly && (
-                      <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-[var(--aether-violet)]/20 text-[var(--aether-violet)] capitalize">
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded mt-1.5 capitalize"
+                        style={{
+                          background: 'rgba(139,92,246,0.2)',
+                          color: 'var(--aether-violet)',
+                          border: '1px solid rgba(139,92,246,0.25)',
+                        }}
+                      >
                         {slot.factionOnly}
                       </span>
                     )}
                   </div>
+
+                  {/* CENTER: Building Info */}
+                  <div className="flex-1 py-3.5 px-4 flex flex-col min-w-0" style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                    {/* Name */}
+                    <h4
+                      className="text-sm font-semibold mb-1 text-[var(--parchment)] group-hover:text-[var(--ember-gold)] transition-colors truncate"
+                      style={{ fontFamily: 'Cinzel, serif' }}
+                    >
+                      {slot.name}
+                    </h4>
+
+                    {/* Description */}
+                    <p className="text-[11px] text-[var(--ruin-grey)] leading-relaxed mb-2 line-clamp-2">
+                      {slot.description}
+                    </p>
+
+                    {/* TC requirement notice */}
+                    {!isBuilt && !isQueued && !tcUnlocked && (
+                      <div
+                        className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded mb-2"
+                        style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
+                      >
+                        <span>🔒</span>
+                        <span>Requires Town Center Lv{requiredTc}</span>
+                      </div>
+                    )}
+
+                    {/* Unlock Info */}
+                    {unlocks.length > 0 && tcUnlocked && (
+                      <div className="mb-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--ember-gold)]/60 font-semibold">Unlocks</span>
+                        <div className="mt-0.5 space-y-0.5">
+                          {unlocks.slice(0, 2).map((u, i) => (
+                            <p key={i} className="text-[10px] text-[var(--parchment-dim)] leading-snug">{u}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spacer to push cost/button to bottom */}
+                    <div className="flex-1" />
+
+                    {/* Cost & Time Row */}
+                    {displayCost && tcUnlocked && !isMaxLevel && !isQueued && (
+                      <div className="mt-auto">
+                        <div className="flex items-center gap-1 mb-1">
+                          <span className="text-[10px] uppercase tracking-wider text-[var(--ruin-grey)]/80 font-semibold">
+                            {isBuilt ? 'Upgrade Cost' : 'Build Cost'}
+                          </span>
+                          {displayTime != null && (
+                            <span className="text-[10px] text-[var(--ruin-grey)] ml-auto flex items-center gap-0.5">
+                              <span style={{ fontSize: '11px' }}>⏱</span> {formatTime(displayTime)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-2.5 gap-y-0.5">
+                          {Object.entries(displayCost).map(([res, amount]) => {
+                            const have = (activeSettlement?.resources as Record<string, number>)?.[res] ?? 0;
+                            const enough = have >= amount;
+                            return (
+                              <span
+                                key={res}
+                                className="text-[11px] flex items-center gap-0.5"
+                                style={{ color: enough ? 'var(--parchment-dim)' : '#f87171' }}
+                              >
+                                <span>{RESOURCE_ICONS[res] || ''}</span>
+                                <span>{amount}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT: Production Stats + Action */}
+                  <div className="flex flex-col items-center justify-between py-3.5 px-3" style={{ width: '115px' }}>
+                    {/* Production Rate */}
+                    {production && (
+                      <div className="text-center mb-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--ruin-grey)]/70 font-semibold block mb-1">
+                          Production
+                        </span>
+                        {isBuilt ? (
+                          <>
+                            <div className="text-base font-bold text-green-400" style={{ fontFamily: 'Cinzel, serif' }}>
+                              +{production.perHour * currentLevel}
+                            </div>
+                            <div className="text-[10px] text-[var(--ruin-grey)]">
+                              {RESOURCE_ICONS[production.resource]} {RESOURCE_LABELS[production.resource]}/hr
+                            </div>
+                            {!isMaxLevel && (
+                              <div className="text-[10px] text-green-500/70 mt-0.5">
+                                Next: +{production.perHour * nextLevel}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-bold text-[var(--ruin-grey)]" style={{ fontFamily: 'Cinzel, serif' }}>
+                              +{production.perHour}
+                            </div>
+                            <div className="text-[10px] text-[var(--ruin-grey)]">
+                              {RESOURCE_ICONS[production.resource]} {RESOURCE_LABELS[production.resource]}/hr
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Non-production buildings: show a stat */}
+                    {!production && isBuilt && !isMaxLevel && (
+                      <div className="text-center mb-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--ruin-grey)]/70 font-semibold block mb-1">
+                          Level
+                        </span>
+                        <div className="text-2xl font-bold text-[var(--parchment)]" style={{ fontFamily: 'Cinzel, serif' }}>
+                          {currentLevel}
+                        </div>
+                        <div className="text-[10px] text-[var(--ruin-grey)]/60">
+                          Next: Lv{nextLevel}
+                        </div>
+                      </div>
+                    )}
+
+                    {!production && isBuilt && isMaxLevel && (
+                      <div className="text-center mb-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--ember-gold)]/70 font-semibold block mb-1">
+                          Max Level
+                        </span>
+                        <div className="text-2xl font-bold text-[var(--ember-gold)]" style={{ fontFamily: 'Cinzel, serif' }}>
+                          {currentLevel}
+                        </div>
+                      </div>
+                    )}
+
+                    {!production && !isBuilt && (
+                      <div className="text-center mb-2">
+                        <span className="text-[10px] uppercase tracking-wider text-[var(--ruin-grey)]/50 font-semibold block mb-1">
+                          Status
+                        </span>
+                        <div className="text-[11px] text-[var(--ruin-grey)]/60 italic">
+                          {tcUnlocked ? 'Available' : 'Locked'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spacer */}
+                    <div className="flex-1" />
+
+                    {/* Action Button */}
+                    {!isBuilt && !isQueued && tcUnlocked && slot.buildable && (
+                      <button
+                        disabled={!canBuildThis || actionInProgress}
+                        onClick={(e) => { e.stopPropagation(); if (canBuildThis) handleBuild(slot.type); }}
+                        className="w-full text-[11px] font-semibold py-2 px-2 rounded-lg transition-all"
+                        style={{
+                          fontFamily: 'Cinzel, serif',
+                          background: canBuildThis
+                            ? 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(139,92,246,0.15))'
+                            : 'rgba(100,100,100,0.15)',
+                          border: canBuildThis
+                            ? '1px solid rgba(139,92,246,0.5)'
+                            : '1px solid rgba(100,100,100,0.2)',
+                          color: canBuildThis ? 'var(--parchment)' : 'var(--ruin-grey)',
+                          cursor: canBuildThis ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        {queueFull ? 'Queue Full' : actionInProgress ? 'Working...' : 'Build'}
+                      </button>
+                    )}
+
+                    {isBuilt && !isMaxLevel && !isQueued && (
+                      <button
+                        disabled={!canUpgrade}
+                        onClick={(e) => { e.stopPropagation(); if (canUpgrade) handleUpgrade(slot.type); }}
+                        className="w-full text-[11px] font-semibold py-2 px-2 rounded-lg transition-all"
+                        style={{
+                          fontFamily: 'Cinzel, serif',
+                          background: canUpgrade
+                            ? 'linear-gradient(135deg, rgba(218,165,32,0.3), rgba(218,165,32,0.15))'
+                            : 'rgba(100,100,100,0.15)',
+                          border: canUpgrade
+                            ? '1px solid rgba(218,165,32,0.5)'
+                            : '1px solid rgba(100,100,100,0.2)',
+                          color: canUpgrade ? 'var(--ember-gold)' : 'var(--ruin-grey)',
+                          cursor: canUpgrade ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        {queueFull ? 'Queue Full' : actionInProgress ? 'Working...' : `Lv ${nextLevel}`}
+                      </button>
+                    )}
+
+                    {isBuilt && isMaxLevel && (
+                      <div
+                        className="w-full text-center text-[11px] py-2 px-2 rounded-lg italic"
+                        style={{
+                          fontFamily: 'Cinzel, serif',
+                          background: 'rgba(218,165,32,0.08)',
+                          border: '1px solid rgba(218,165,32,0.15)',
+                          color: 'rgba(218,165,32,0.6)',
+                        }}
+                      >
+                        Fully Upgraded
+                      </div>
+                    )}
+
+                    {isQueued && (
+                      <div
+                        className="w-full text-center text-[11px] py-2 px-2 rounded-lg animate-pulse"
+                        style={{
+                          background: 'rgba(218,165,32,0.1)',
+                          border: '1px solid rgba(218,165,32,0.2)',
+                          color: 'var(--ember-gold)',
+                        }}
+                      >
+                        In Queue
+                      </div>
+                    )}
+
+                    {!tcUnlocked && (
+                      <div
+                        className="w-full text-center text-[10px] py-1.5 px-2 rounded-lg"
+                        style={{
+                          background: 'rgba(100,100,100,0.1)',
+                          border: '1px solid rgba(100,100,100,0.15)',
+                          color: 'var(--ruin-grey)',
+                        }}
+                      >
+                        🔒 TC Lv{requiredTc}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <p className="text-xs text-[var(--ruin-grey)] leading-relaxed mb-2">
-                  {slot.description}
-                </p>
-
-                {/* TC requirement notice */}
-                {!isBuilt && !isQueued && !tcUnlocked && (
-                  <div className="text-xs text-red-400/80 mt-1">
-                    Requires Town Center Lv{requiredTc}
-                  </div>
-                )}
-
-                {/* Build section (for unbuilt buildings) */}
-                {slot.buildable && slot.cost && !isBuilt && !isQueued && tcUnlocked && (
-                  <div className="mt-1">
-                    <CostDisplay cost={slot.cost} resources={activeSettlement?.resources} />
-                    {slot.time && (
-                      <span className="text-xs text-[var(--ruin-grey)] ml-1">
-                        {formatTime(slot.time)}
-                      </span>
-                    )}
-                    <button
-                      disabled={!canBuild || actionInProgress}
-                      onClick={(e) => { e.stopPropagation(); if (canBuild) handleBuild(slot.type); }}
-                      className={`w-full mt-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        canBuild && !actionInProgress
-                          ? 'bg-[var(--aether-violet)]/30 border border-[var(--aether-violet)]/50 text-[var(--parchment)] hover:bg-[var(--aether-violet)]/50'
-                          : 'bg-[var(--ruin-grey)]/20 border border-[var(--ruin-grey)]/20 text-[var(--ruin-grey)] cursor-not-allowed'
-                      }`}
-                    >
-                      {queueFull ? 'Queue Full' : actionInProgress ? 'Building...' : 'Build'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Upgrade section (for built buildings, not at max) */}
-                {isBuilt && !isMaxLevel && upgradeCost && (
-                  <div className="mt-2 pt-2 border-t border-[var(--ruin-grey)]/20">
-                    <CostDisplay cost={upgradeCost} resources={activeSettlement?.resources} />
-                    {upgradeTimeSeconds != null && (
-                      <span className="text-xs text-[var(--ruin-grey)] ml-1">
-                        {formatTime(upgradeTimeSeconds)}
-                      </span>
-                    )}
-                    <button
-                      disabled={!canUpgrade}
-                      onClick={(e) => { e.stopPropagation(); if (canUpgrade) handleUpgrade(slot.type); }}
-                      className={`w-full mt-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        canUpgrade
-                          ? 'bg-[var(--ember-gold)]/20 border border-[var(--ember-gold)]/40 text-[var(--ember-gold)] hover:bg-[var(--ember-gold)]/30'
-                          : 'bg-[var(--ruin-grey)]/20 border border-[var(--ruin-grey)]/20 text-[var(--ruin-grey)] cursor-not-allowed'
-                      }`}
-                    >
-                      {queueFull ? 'Queue Full' : isQueued ? 'In Queue' : actionInProgress ? 'Working...' : `Upgrade to Lv${nextLevel}`}
-                    </button>
-                  </div>
-                )}
-
-                {/* Max level message */}
-                {isBuilt && isMaxLevel && (
-                  <div className="mt-2 pt-2 border-t border-[var(--ruin-grey)]/10">
-                    <p className="text-xs text-[var(--ember-gold)]/60 italic">Fully upgraded</p>
-                  </div>
-                )}
               </div>
             );
           })}
