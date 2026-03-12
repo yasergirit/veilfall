@@ -15,7 +15,7 @@ interface MinimapProps {
 
 // Minimap covers q from -20 to 20, r from -20 to 20
 const MAP_RANGE = 20;
-const MINIMAP_SIZE = 180;
+const MINIMAP_SIZE = 240;
 const PADDING = 4;
 const CANVAS_AREA = MINIMAP_SIZE - PADDING * 2;
 const LABEL_HEIGHT = 12;
@@ -213,7 +213,7 @@ const Minimap = memo<MinimapProps>(function Minimap({
     <div
       style={{
         position: 'absolute',
-        bottom: 16,
+        top: 16,
         right: 16,
         width: MINIMAP_SIZE,
         height: MINIMAP_SIZE,
