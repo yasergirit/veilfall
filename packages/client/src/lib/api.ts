@@ -198,4 +198,8 @@ export const api = {
     request<any>('/daily-rewards/status'),
   claimDailyReward: () =>
     request<any>('/daily-rewards/claim', { method: 'POST' }),
+
+  // Admin
+  resetGame: () =>
+    request<any>('/admin/reset', { method: 'POST' }),
 };

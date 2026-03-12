@@ -117,6 +117,20 @@ export default function ResourceBar() {
   }, [showSettlementDropdown]);
   const musicEnabled = useAudioStore((s) => s.musicEnabled);
   const toggleMusic = useAudioStore((s) => s.toggleMusic);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleReset = useCallback(async () => {
+    setIsResetting(true);
+    try {
+      await api.resetGame();
+      // Reload page after successful reset
+      window.location.reload();
+    } catch (error) {
+      setIsResetting(false);
+      alert(`Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
 
   // Aether cycle state
   const [aetherCycle, setAetherCycle] = useState<{ phase: string; nextChangeAt: number } | null>(null);
@@ -218,6 +232,46 @@ export default function ResourceBar() {
         >
           {musicEnabled ? '\u{1F50A}' : '\u{1F507}'}
         </button>
+
+        {/* Admin Reset Button - only show for LucidReis */}
+        {player?.username === 'LucidReis' && (
+          <div className="relative">
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              disabled={isResetting}
+              className="text-xs px-2 py-1 rounded border transition-colors bg-red-950/50 border-red-700/40 text-red-300 hover:text-red-100 hover:border-red-600/60 disabled:opacity-50"
+              title="Reset all game data (admin only)"
+            >
+              ⚠️ Reset
+            </button>
+            {showResetConfirm && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-[var(--veil-blue)] border border-red-700/50 rounded-lg p-6 max-w-sm mx-4">
+                  <h3 className="text-red-400 font-bold mb-3">Confirm Game Reset</h3>
+                  <p className="text-[var(--parchment-dim)] text-sm mb-6">
+                    This will permanently delete all player data, settlements, heroes, and progress. This action cannot be undone.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowResetConfirm(false)}
+                      disabled={isResetting}
+                      className="flex-1 px-4 py-2 rounded border border-[var(--ruin-grey)]/30 text-[var(--parchment-dim)] hover:bg-[var(--veil-blue)]/50 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      disabled={isResetting}
+                      className="flex-1 px-4 py-2 rounded bg-red-900/50 border border-red-700/50 text-red-300 hover:bg-red-900/70 transition-colors disabled:opacity-50"
+                    >
+                      {isResetting ? 'Resetting...' : 'Reset Game'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notification bell */}
         <NotificationBell />
