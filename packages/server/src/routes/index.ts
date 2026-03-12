@@ -18,6 +18,7 @@ import { spyRoutes } from './spy.js';
 import { worldBossRoutes } from './world-boss.js';
 import { mailRoutes } from './mail.js';
 import { heroQuestRoutes } from './hero-quests.js';
+import { questRoutes } from './quests.js';
 
 export async function registerRoutes(app: FastifyInstance) {
   app.get('/api/health', async () => ({
@@ -47,4 +48,5 @@ export async function registerRoutes(app: FastifyInstance) {
   await app.register(worldBossRoutes, { prefix: '/api/world-boss' });
   await app.register(mailRoutes, { prefix: '/api/mail' });
   await app.register(heroQuestRoutes, { prefix: '/api/hero-quests' });
+  await app.register(questRoutes, { prefix: '/api/quests' });
 }

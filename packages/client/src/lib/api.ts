@@ -181,4 +181,10 @@ export const api = {
   getWorldBoss: (id: string) => request<any>(`/world-boss/${id}`),
   attackWorldBoss: (bossId: string, settlementId: string, units: Record<string, number>) =>
     request<any>(`/world-boss/${bossId}/attack`, { method: 'POST', body: JSON.stringify({ settlementId, units }) }),
+
+  // Quests (Story/Daily/Milestone)
+  getQuests: () =>
+    request<{ story: any[]; daily: any[]; milestones: any[] }>('/quests'),
+  claimQuestReward: (questId: string) =>
+    request<any>(`/quests/${questId}/claim`, { method: 'POST' }),
 };

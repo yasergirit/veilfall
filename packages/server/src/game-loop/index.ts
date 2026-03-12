@@ -7,6 +7,7 @@ import type { Faction } from '@veilfall/shared';
 import { WORLD_BOSS_TEMPLATES } from '../routes/world-boss.js';
 import { QUEST_DEFINITIONS } from '../routes/hero-quests.js';
 import { EQUIPMENT_ITEMS } from '../routes/heroes.js';
+import { incrementQuestProgress } from '../routes/quests.js';
 
 // ── Aether Harvest Cycle State ──
 const AETHER_DORMANT_DURATION = 300_000; // 5 minutes
@@ -314,6 +315,9 @@ export function startGameLoop() {
             incrementProgress(settlement.playerId, item.count);
           }
 
+          // Track quest progress for unit training
+          incrementQuestProgress(settlement.playerId, 'train', item.unitType, item.count);
+
           console.log(`[GameLoop] ${settlement.name}: trained ${item.count} ${item.unitType}`);
         }
       });
@@ -345,6 +349,9 @@ export function startGameLoop() {
             timestamp: now,
             data: { marchId: march.id, marchType: march.type, toQ: march.toQ, toR: march.toR },
           });
+
+          // Track quest progress for scout missions
+          incrementQuestProgress(march.playerId, 'scout', 'any', 1);
 
           console.log(`[GameLoop] Scout march ${march.id} arrived at (${march.toQ},${march.toR}), returning`);
         } else if (march.type === 'attack') {
@@ -517,6 +524,9 @@ export function startGameLoop() {
             message: `Your attack at (${march.toQ},${march.toR}) ${result.winner === 'attacker' ? 'was successful' : 'failed'}`,
             data: { reportId: report.id },
           });
+
+          // Track quest progress for march/attack
+          incrementQuestProgress(march.playerId, 'march', 'any', 1);
 
           console.log(`[GameLoop] Combat at (${march.toQ},${march.toR}): ${result.winner} wins. Report: ${report.id}`);
         } else if (march.type === 'reinforce') {
