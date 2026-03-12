@@ -255,16 +255,10 @@ export default function ChatPanel() {
           className="flex-1 flex flex-col overflow-hidden relative"
           style={{
             background: 'url(/assets/gui/chat/chat_main_bg.png) center/cover, rgba(18, 28, 50, 0.97)',
-            border: '3px solid #3a2a1a',
-            boxShadow: 'inset 0 0 12px rgba(0,0,0,0.5)',
+            border: '16px solid transparent',
+            borderImage: 'url(/assets/gui/panels/content_box_3.png) 48 fill stretch',
           }}
         >
-          {/* Bottom ornament */}
-          <img
-            src="/assets/gui/chat/bottom_ornament.png"
-            alt=""
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-24 z-10 pointer-events-none"
-          />
           {/* Channel Tabs */}
           <div className="flex border-b border-[var(--ruin-grey)]/20 shrink-0">
             {channels.map((ch) => (
