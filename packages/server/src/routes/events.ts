@@ -217,10 +217,11 @@ export async function eventRoutes(app: FastifyInstance) {
     const active = mockDb.getActiveSeasonalEvent();
 
     if (!active) {
-      return { event: null, progress: null };
+      return { event: null, progress: 0, timeRemaining: 0, rewardClaimed: false };
     }
 
-    const progress = mockDb.getEventProgressByPlayerAndEvent(player.id, active.id);
+    const progressRecord = mockDb.getEventProgressByPlayerAndEvent(player.id, active.id);
+    const currentProgress = progressRecord?.progress ?? 0;
 
     return {
       event: {
@@ -228,27 +229,14 @@ export async function eventRoutes(app: FastifyInstance) {
         type: active.type,
         name: active.name,
         description: active.description,
-        startedAt: active.startedAt,
-        endsAt: active.endsAt,
-        status: active.status,
-        objectives: active.objectives,
-        rewards: active.rewards,
         bonusDescription: active.bonusDescription,
-        timeRemainingMs: Math.max(0, active.endsAt - Date.now()),
+        objective: active.objectives.description,
+        targetValue: active.objectives.target,
+        reward: active.rewards,
       },
-      progress: progress
-        ? {
-            current: progress.progress,
-            target: active.objectives.target,
-            completed: progress.completed,
-            claimedReward: progress.claimedReward,
-          }
-        : {
-            current: 0,
-            target: active.objectives.target,
-            completed: false,
-            claimedReward: false,
-          },
+      progress: currentProgress,
+      timeRemaining: Math.max(0, (active.endsAt - Date.now()) / 1000),
+      rewardClaimed: progressRecord?.claimedReward ?? false,
     };
   });
 
@@ -257,19 +245,19 @@ export async function eventRoutes(app: FastifyInstance) {
   // -------------------------------------------------------------------------
   app.post('/claim', async (request, reply) => {
     const player = request.user;
-    const body = request.body as { eventId?: string };
+    const body = request.body as { eventId?: string } | null;
     const eventId = body?.eventId;
 
-    if (!eventId) {
-      return reply.status(400).send({ error: 'eventId is required' });
-    }
+    // Support both explicit eventId and auto-detect active event
+    const event = eventId
+      ? mockDb.getSeasonalEvent(eventId)
+      : mockDb.getActiveSeasonalEvent();
 
-    const event = mockDb.getSeasonalEvent(eventId);
     if (!event) {
-      return reply.status(404).send({ error: 'Event not found' });
+      return reply.status(404).send({ error: 'No active event found' });
     }
 
-    const progress = mockDb.getEventProgressByPlayerAndEvent(player.id, eventId);
+    const progress = mockDb.getEventProgressByPlayerAndEvent(player.id, event.id);
     if (!progress) {
       return reply.status(400).send({ error: 'No progress recorded for this event' });
     }
@@ -345,32 +333,16 @@ export async function eventRoutes(app: FastifyInstance) {
 
     const pastEvents = mockDb.getSeasonalEventHistory(limit);
 
-    const history = pastEvents.map((event) => {
-      const progress = mockDb.getEventProgressByPlayerAndEvent(player.id, event.id);
-      const totalParticipants = mockDb.getEventProgressByEvent(event.id).length;
-      const totalCompleted = mockDb.getEventProgressByEvent(event.id).filter((p) => p.completed).length;
+    const history = pastEvents.map((evt) => {
+      const prog = mockDb.getEventProgressByPlayerAndEvent(player.id, evt.id);
 
       return {
-        id: event.id,
-        type: event.type,
-        name: event.name,
-        startedAt: event.startedAt,
-        endsAt: event.endsAt,
-        status: event.status,
-        objectives: event.objectives,
-        rewards: event.rewards,
-        playerProgress: progress
-          ? {
-              current: progress.progress,
-              target: event.objectives.target,
-              completed: progress.completed,
-              claimedReward: progress.claimedReward,
-            }
-          : null,
-        stats: {
-          totalParticipants,
-          totalCompleted,
-        },
+        id: evt.id,
+        type: evt.type,
+        name: evt.name,
+        completed: prog?.completed ?? false,
+        rewardClaimed: prog?.claimedReward ?? false,
+        endedAt: new Date(evt.endsAt).toISOString(),
       };
     });
 

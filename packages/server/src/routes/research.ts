@@ -22,7 +22,18 @@ const startResearchSchema = z.object({
 
 export async function researchRoutes(app: FastifyInstance) {
   app.get('/tree', async () => {
-    return { tree: RESEARCH_TREE };
+    // Return as array with type key included, matching client expectations
+    const tree = Object.entries(RESEARCH_TREE).map(([type, node]) => ({
+      type,
+      name: node.name,
+      description: node.description,
+      maxLevel: node.maxLevel,
+      cost: node.cost,
+      time: node.timeSeconds,
+      requiredBuilding: node.requires,
+      effects: node.effects,
+    }));
+    return { tree };
   });
 
   app.get('/:settlementId', { preHandler: requireAuth }, async (request, reply) => {
@@ -35,8 +46,10 @@ export async function researchRoutes(app: FastifyInstance) {
     }
 
     return {
-      researched: settlement.researched,
-      researchQueue: settlement.researchQueue,
+      completed: settlement.researched,
+      active: settlement.researchQueue
+        ? { type: settlement.researchQueue.type, level: settlement.researchQueue.level, endsAt: settlement.researchQueue.endsAt }
+        : null,
     };
   });
 

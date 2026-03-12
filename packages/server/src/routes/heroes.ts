@@ -47,24 +47,34 @@ export async function heroRoutes(app: FastifyInstance) {
     const player = request.user;
     const heroes = mockDb.getHeroesByPlayer(player.id);
 
-    const abilitiesByHero = heroes.map((hero) => {
-      const available = Object.entries(HERO_ABILITIES)
-        .filter(([, ability]) => ability.heroClass === hero.heroClass)
-        .map(([id, ability]) => ({
+    // Return a flat list of all abilities relevant to the player's heroes
+    const abilities: Array<Record<string, any>> = [];
+    const seen = new Set<string>();
+
+    for (const hero of heroes) {
+      for (const [id, ability] of Object.entries(HERO_ABILITIES)) {
+        if (ability.heroClass !== hero.heroClass) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        abilities.push({
           id,
           ...ability,
           unlocked: hero.abilities.includes(id),
           canUnlock: hero.level >= ability.levelRequired && !hero.abilities.includes(id),
-        }));
-      return { heroId: hero.id, heroName: hero.name, heroClass: hero.heroClass, abilities: available };
-    });
+        });
+      }
+    }
 
-    return { abilitiesByHero };
+    return { abilities };
   });
 
-  // GET /items — all equipment item configs
+  // GET /items — all equipment item configs (as array for client)
   app.get('/items', async () => {
-    return { items: EQUIPMENT_ITEMS };
+    const items = Object.entries(EQUIPMENT_ITEMS).map(([id, item]) => ({
+      id,
+      ...item,
+    }));
+    return { items };
   });
 
   // POST /:heroId/equip — equip an item

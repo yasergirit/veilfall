@@ -76,9 +76,20 @@ export async function worldBossRoutes(app: FastifyInstance) {
   // GET / — List all active world bosses
   // -----------------------------------------------------------------------
   app.get('/', { preHandler: requireAuth }, async () => {
-    const bosses = mockDb.getActiveWorldBosses().map((boss) => ({
-      ...boss,
-      healthPercent: Math.round((boss.health / boss.maxHealth) * 100),
+    const allBosses = [...mockDb.worldBosses.values()];
+    const bosses = allBosses.map((boss) => ({
+      id: boss.id,
+      name: boss.name,
+      title: boss.title,
+      type: boss.type,
+      hp: boss.health,
+      maxHp: boss.maxHealth,
+      despawnAt: boss.expiresAt,
+      defeated: boss.status === 'defeated',
+      rewards: Object.entries(boss.rewards).map(([type, amount]) => ({ type, amount })),
+      leaderboard: boss.attackers
+        .sort((a, b) => b.damage - a.damage)
+        .map((a, i) => ({ playerName: a.username, damage: a.damage, rank: i + 1 })),
     }));
     return { bosses };
   });
@@ -94,14 +105,24 @@ export async function worldBossRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: 'World boss not found' });
     }
 
-    const attackers = [...boss.attackers].sort((a, b) => b.damage - a.damage);
+    const leaderboard = [...boss.attackers]
+      .sort((a, b) => b.damage - a.damage)
+      .map((a, i) => ({ playerName: a.username, damage: a.damage, rank: i + 1 }));
 
     return {
       boss: {
-        ...boss,
-        healthPercent: Math.round((boss.health / boss.maxHealth) * 100),
+        id: boss.id,
+        name: boss.name,
+        title: boss.title,
+        type: boss.type,
+        hp: boss.health,
+        maxHp: boss.maxHealth,
+        despawnAt: boss.expiresAt,
+        defeated: boss.status === 'defeated',
+        rewards: Object.entries(boss.rewards).map(([type, amount]) => ({ type, amount })),
+        leaderboard,
       },
-      attackers,
+      attackers: leaderboard,
     };
   });
 

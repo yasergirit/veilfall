@@ -809,11 +809,11 @@ export function startGameLoop() {
     tickEventRotation();
   }, 15_000);
 
-  // World Boss spawner — every 120 seconds (2 minutes for dev)
+  // World Boss spawner — every 60 seconds
   const WORLD_BOSS_EXPIRE_MS = 15 * 60 * 1000; // 15 minutes
   const bossTypeKeys = Object.keys(WORLD_BOSS_TEMPLATES);
 
-  setInterval(() => {
+  function tickWorldBosses() {
     const now = Date.now();
 
     // Expire bosses that have exceeded their lifetime
@@ -822,7 +822,6 @@ export function startGameLoop() {
         mockDb.updateWorldBoss(boss.id, { status: 'despawned' });
         console.log(`[WorldBoss] ${boss.name} despawned — time expired at (${boss.q},${boss.r})`);
 
-        // Notify all players
         for (const player of mockDb.players.values()) {
           pushNotification(player.id, {
             type: 'system',
@@ -862,7 +861,6 @@ export function startGameLoop() {
 
       console.log(`[WorldBoss] ${boss.name} "${boss.title}" spawned at (${q},${r}) with ${boss.maxHealth} HP`);
 
-      // Notify all players
       for (const player of mockDb.players.values()) {
         pushNotification(player.id, {
           type: 'system',
@@ -872,7 +870,11 @@ export function startGameLoop() {
         });
       }
     }
-  }, 120_000);
+  }
+
+  // Spawn first boss immediately, then check every 60 seconds
+  tickWorldBosses();
+  setInterval(tickWorldBosses, 60_000);
 
   // Hero quest processor — every 5 seconds
   setInterval(() => {
