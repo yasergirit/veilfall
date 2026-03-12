@@ -211,9 +211,9 @@ function generateDemoMap(radius: number, settlementQ: number, settlementR: numbe
     const dist = hexDistance(hex(0, 0), h);
     const zone = getZoneForDistance(dist, 400);
 
-    // Pixel position for angle calculation (flat-top hex layout)
-    const px = 1.5 * h.q;
-    const py = Math.sqrt(3) / 2 * h.q + Math.sqrt(3) * h.r;
+    // Pixel position for angle calculation (pointy-top hex layout)
+    const px = Math.sqrt(3) * h.q + Math.sqrt(3) / 2 * h.r;
+    const py = 1.5 * h.r;
     const angle = ((Math.atan2(py, px) * 180 / Math.PI) + 360) % 360; // 0-360°
 
     // Noise layers for terrain variety
@@ -543,12 +543,8 @@ export default function HexMap() {
         ctx.save();
         drawHexPath(ctx, px, py, HEX_SIZE);
         ctx.clip();
-        // Draw tile image rotated -30° to convert flat-top asset to pointy-top
-        ctx.translate(px, py);
-        ctx.rotate(-Math.PI / 6);
-        ctx.drawImage(tileImg, -imgW / 2, -faceOffY, imgW, imgH);
-        ctx.rotate(Math.PI / 6);
-        ctx.translate(-px, -py);
+        // Draw tile image straight (no rotation)
+        ctx.drawImage(tileImg, px - imgW / 2, py - faceOffY, imgW, imgH);
         ctx.restore();
 
         // Draw highlight/selection outline on top of tile image
