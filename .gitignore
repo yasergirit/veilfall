@@ -2,7 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
-.env.production
+.env*.local
 *.log
 .DS_Store
 Thumbs.db
@@ -11,3 +11,5 @@ coverage/
 .nyc_output/
 .claude/
 *.tsbuildinfo
+
+.vercel

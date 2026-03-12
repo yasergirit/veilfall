@@ -65,7 +65,12 @@ export default function LoginPage() {
       login(data.player, data.token, data.refreshToken);
       navigate('/game');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
+        setError('Could not connect to server. Please try again later.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
