@@ -504,11 +504,10 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Scale to hex width, preserve aspect ratio — top overflow allowed
-    const IMG_ASPECT = 256 / 384;
-    const imgW = Math.sqrt(3) * hexSize;
-    const imgH = imgW / IMG_ASPECT;
-    // Anchor image bottom to hex bottom (py + hexSize), top overflows freely
+    // Stretch asset to hex cell size, no aspect ratio constraint
+    const imgW = Math.sqrt(3) * hexSize; // hex width
+    const imgH = 2 * hexSize;            // hex height
+    // Anchor image bottom to hex bottom, top overflow allowed
     const faceOffY = imgH - hexSize;
 
     // Sort tiles ascending by r: low r (top of screen) drawn first,
