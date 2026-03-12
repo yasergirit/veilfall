@@ -515,10 +515,11 @@ export default function HexMap() {
     const imgH = TILE_H * scale; // = 3 * HEX_SIZE = 126 (isometric depth)
     const faceOffY = imgH * FACE_CENTER_Y; // hex face center offset from image top
 
-    // Sort tiles by r (then q) for back-to-front isometric depth ordering
+    // Sort tiles: high r (bottom of screen) drawn first, low r (top) drawn last
+    // so upward-extending tile images aren't clipped by rows below
     const sortedTiles = [...tilesRef.current].sort((a, b) => {
-      if (a.r !== b.r) return a.r - b.r;
-      return a.q - b.q;
+      if (a.r !== b.r) return b.r - a.r;
+      return b.q - a.q;
     });
 
     for (const tile of sortedTiles) {
