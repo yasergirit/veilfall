@@ -6,6 +6,8 @@ import { STARTING_RESOURCES } from '@veilfall/shared';
 import NotificationBell from './NotificationBell.js';
 import { api } from '../lib/api.js';
 
+const RESOURCE_ORDER = ['food', 'wood', 'stone', 'iron', 'aether_stone'] as const;
+
 const RESOURCE_ICONS: Record<string, string> = {
   food: '\u{1F33E}',
   wood: '\u{1FAB5}',
@@ -159,7 +161,8 @@ export default function ResourceBar() {
     >
       {/* Resources */}
       <div className="flex gap-5">
-        {Object.entries(resources).map(([key, value]) => {
+        {RESOURCE_ORDER.map((key) => {
+          const value = resources[key] ?? 0;
           const rate = productionRates[key] ?? 0;
           return (
             <div key={key} className="flex items-center gap-1.5">
