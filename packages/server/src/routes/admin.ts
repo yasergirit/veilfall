@@ -29,7 +29,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post('/reset', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
 
-    const ADMIN_EMAILS = ['odgardian@gmail.com'];
+    const ADMIN_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
     const TESTER_EMAILS = ['yasergirit@gmail.com'];
 
     // Check role from JWT, fallback to DB lookup by player ID for old tokens

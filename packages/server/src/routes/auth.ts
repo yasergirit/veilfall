@@ -6,7 +6,7 @@ import type { PlayerRole } from '../db/mock-db.js';
 import { STARTING_RESOURCES } from '@veilfall/shared';
 import { syncPlayer, syncSettlement } from '../db/supabase-sync.js';
 
-const ADMIN_EMAILS = ['odgardian@gmail.com'];
+const ADMIN_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
 const TESTER_EMAILS = ['yasergirit@gmail.com'];
 
 const STARTER_HEROES: Record<string, { name: string; heroClass: string }> = {

@@ -249,7 +249,7 @@ export async function settlementRoutes(app: FastifyInstance) {
   });
 
   // Debug: Add resources (tester/admin only, with email fallback for old tokens)
-  const ADMIN_EMAILS = ['odgardian@gmail.com'];
+  const ADMIN_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
   const TESTER_EMAILS = ['yasergirit@gmail.com'];
   const addResourceSchema = z.object({ resource: z.string() });
 
