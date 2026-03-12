@@ -78,6 +78,15 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
   const canAfford = (cost: Record<string, number | undefined>, count: number) =>
     Object.entries(cost).every(([res, amount]) => amount == null || (resources[res] ?? 0) >= amount * count);
 
+  const getMaxAffordable = (cost: Record<string, number | undefined>): number => {
+    let max = 50;
+    for (const [res, amount] of Object.entries(cost)) {
+      if (amount == null || amount === 0) continue;
+      max = Math.min(max, Math.floor((resources[res] ?? 0) / amount));
+    }
+    return Math.max(0, max);
+  };
+
   const handleTrain = async (unitType: string, count: number) => {
     if (training) return;
     setTraining(true);
@@ -98,13 +107,13 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
     }
   };
 
-  const handleCountChange = (unitType: string, value: string) => {
-    const num = Math.max(1, Math.min(50, parseInt(value) || 1));
+  const handleCountChange = (unitType: string, value: string, max: number) => {
+    const num = Math.max(1, Math.min(max, parseInt(value) || 1));
     setCounts((prev) => ({ ...prev, [unitType]: num }));
   };
 
-  const handleIncrement = (unitType: string) => {
-    setCounts((prev) => ({ ...prev, [unitType]: Math.min(50, (prev[unitType] ?? 1) + 1) }));
+  const handleIncrement = (unitType: string, max: number) => {
+    setCounts((prev) => ({ ...prev, [unitType]: Math.min(max, (prev[unitType] ?? 1) + 1) }));
   };
 
   const handleDecrement = (unitType: string) => {
@@ -147,6 +156,7 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
       <div className="flex flex-col gap-3">
         {UNIT_TYPES.map((unit) => {
           const hasBuilding = hasBuildingFor(unit.requires);
+          const maxAffordable = getMaxAffordable(unit.cost);
           const count = counts[unit.type] ?? 1;
           const affordable = canAfford(unit.cost, count);
           const canTrain = hasBuilding && affordable && !training;
@@ -186,11 +196,13 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
                     >
                       {unit.name}
                     </span>
-                    {currentCount > 0 && (
-                      <span className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--aether-violet)]/25 text-[var(--aether-violet)] border border-[var(--aether-violet)]/30">
-                        x{currentCount}
-                      </span>
-                    )}
+                    <span className={`flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                      currentCount > 0
+                        ? 'bg-[var(--aether-violet)]/25 text-[var(--aether-violet)] border-[var(--aether-violet)]/30'
+                        : 'bg-[var(--ruin-grey)]/15 text-[var(--ruin-grey)] border-[var(--ruin-grey)]/20'
+                    }`}>
+                      x{currentCount}
+                    </span>
                   </div>
 
                   {/* Stats row with dividers */}
@@ -246,6 +258,7 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
                 {hasBuilding ? (
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {/* Stepper */}
+                    <div className="flex flex-col items-center gap-0.5">
                     <div className="flex items-center rounded-md border border-[var(--ruin-grey)]/30 overflow-hidden">
                       <button
                         type="button"
@@ -260,17 +273,19 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
                         min={1}
                         max={50}
                         value={count}
-                        onChange={(e) => handleCountChange(unit.type, e.target.value)}
+                        onChange={(e) => handleCountChange(unit.type, e.target.value, maxAffordable)}
                         className="w-10 h-7 text-xs text-center bg-[var(--veil-blue-deep)] text-[var(--parchment)] border-x border-[var(--ruin-grey)]/30 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button
                         type="button"
-                        onClick={() => handleIncrement(unit.type)}
+                        onClick={() => handleIncrement(unit.type, maxAffordable)}
                         className="w-7 h-7 flex items-center justify-center text-sm text-[var(--parchment-dim)] bg-[var(--veil-blue-deep)] hover:bg-[var(--veil-blue)] transition-colors"
                         aria-label="Increase count"
                       >
                         +
                       </button>
+                    </div>
+                    <span className="text-[9px] text-[var(--ruin-grey)]">max: {maxAffordable}</span>
                     </div>
 
                     {/* Train button */}
