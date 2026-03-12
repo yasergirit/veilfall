@@ -1,8 +1,7 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { hexToPixel, hexesInRange, hex, getZoneForDistance, hexDistance, pixelToHex, hexKey } from '@veilfall/shared';
 import { useGameStore } from '../stores/game-store.js';
 import { api } from '../lib/api.js';
-import Minimap from './Minimap.js';
 
 const HEX_SIZE = 42;
 const MAP_RADIUS = 15;
@@ -840,36 +839,6 @@ export default function HexMap() {
     : false;
   const travelTime = getEstimatedTravelTime();
 
-  // Minimap data: current viewport center in hex coords
-  const minimapCenter = useMemo(() => {
-    const centered = pixelToHex(-offset.x, -offset.y, HEX_SIZE);
-    return { q: centered.q, r: centered.r };
-  }, [offset]);
-
-  const minimapSettlements = useMemo(() => {
-    return settlements.map((s) => ({
-      q: s.coordinates?.q ?? 0,
-      r: s.coordinates?.r ?? 0,
-    }));
-  }, [settlements]);
-
-  const minimapEvents = useMemo(() => {
-    return mapEvents.map((e) => ({ q: e.q, r: e.r, type: e.type }));
-  }, [mapEvents]);
-
-  const minimapMarches = useMemo(() => {
-    return activeMarches.map((m) => ({
-      fromQ: m.fromQ, fromR: m.fromR,
-      toQ: m.toQ, toR: m.toR,
-      departedAt: m.departedAt, arrivesAt: m.arrivesAt,
-    }));
-  }, [activeMarches]);
-
-  const handleMinimapNavigate = useCallback((q: number, r: number) => {
-    // Convert target hex to pixel, then set offset so that hex is centered
-    const targetPixel = hexToPixel(hex(q, r), HEX_SIZE);
-    setOffset({ x: -targetPixel.x, y: -targetPixel.y });
-  }, []);
 
   return (
     <div className="relative w-full h-full">
@@ -1168,15 +1137,6 @@ export default function HexMap() {
         </div>
       )}
 
-      {/* Minimap */}
-      <Minimap
-        playerSettlements={minimapSettlements}
-        mapCenter={minimapCenter}
-        mapEvents={minimapEvents}
-        activeMarches={minimapMarches}
-        viewportHexRadius={MAP_RADIUS}
-        onNavigate={handleMinimapNavigate}
-      />
     </div>
   );
 }
