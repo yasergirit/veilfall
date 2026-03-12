@@ -262,7 +262,7 @@ export default function ChatPanel() {
           }}
         >
           {/* Channel Tabs */}
-          <div className="flex shrink-0">
+          <div className="flex">
             {channels.map((ch) => {
               const isActiveTab = activeChannel.type === ch.type && activeChannel.id === ch.id;
               return (
@@ -318,7 +318,7 @@ export default function ChatPanel() {
 
           {/* Input */}
           <div
-            className="flex items-center gap-1 px-2 py-1 shrink-0"
+            className="flex items-center gap-1 px-2 py-1"
             style={{
               background: 'url(/assets/gui/chat/type_box.png) center/100% 100% no-repeat',
             }}
