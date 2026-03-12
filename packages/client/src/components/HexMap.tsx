@@ -505,9 +505,10 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Stretch asset to exactly fill hex cell — no overlap, no gaps
-    const imgW = Math.sqrt(3) * hexSize; // pointy-top hex width
-    const imgH = 2 * hexSize;            // pointy-top hex height
+    // Uniform scale: fit to hex width, preserve aspect ratio (no distortion)
+    const IMG_ASPECT = 256 / 384; // native tile aspect ratio
+    const imgW = Math.sqrt(3) * hexSize; // match pointy-top hex width
+    const imgH = imgW / IMG_ASPECT;      // preserve aspect ratio (taller than hex, overflow ok)
     const faceOffY = imgH * FACE_CENTER_Y;
 
     // Sort tiles ascending by r: low r (top of screen) drawn first,
@@ -548,7 +549,7 @@ export default function HexMap() {
     // ═══════════════════════════════════════════════════
     // LAYER 2: Hex grid overlay (pointy-top outlines)
     // ═══════════════════════════════════════════════════
-    ctx.strokeStyle = 'rgba(232, 220, 200, 0.12)';
+    ctx.strokeStyle = 'rgba(232, 220, 200, 0.22)';
     ctx.lineWidth = 1;
     for (const tile of sortedTiles) {
       const { x, y } = hexToPixel(tile, hexSize);
@@ -730,15 +731,15 @@ export default function HexMap() {
           }
         }
 
-        // Draw fog hex clipped to flat-top hex shape
+        // Draw fog hex clipped to pointy-top hex shape
         ctx.save();
         drawHexPath(ctx, px, py, hexSize);
         ctx.clip();
 
         if (isBoundary) {
           const grad = ctx.createRadialGradient(px, py, 0, px, py, hexSize);
-          grad.addColorStop(0, 'rgba(10, 15, 30, 0.35)');
-          grad.addColorStop(1, 'rgba(10, 15, 30, 0.65)');
+          grad.addColorStop(0, 'rgba(10, 15, 30, 0.65)');
+          grad.addColorStop(1, 'rgba(10, 15, 30, 0.35)');
           ctx.fillStyle = grad;
         } else {
           ctx.fillStyle = 'rgba(10, 15, 30, 0.75)';
