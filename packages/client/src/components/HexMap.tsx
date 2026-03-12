@@ -504,9 +504,9 @@ export default function HexMap() {
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
     const hexSize = HEX_SIZE * zoom;
-    // Assets are 256x256 square tiles — scale to hex width, keep 1:1
-    const imgW = Math.sqrt(3) * hexSize; // match hex width
-    const imgH = imgW;                   // 1:1 square asset
+    // Regular pointy-top hex: width=sqrt(3)*s, height=2*s (120° interior angles)
+    const imgW = Math.sqrt(3) * hexSize;
+    const imgH = 2 * hexSize;
     // Anchor image bottom to hex bottom, top overflow allowed
     const faceOffY = imgH - hexSize;
 
