@@ -255,8 +255,8 @@ export default function ResourceBar() {
           {musicEnabled ? '\u{1F50A}' : '\u{1F507}'}
         </button>
 
-        {/* Admin Reset Button - only show for LucidReis */}
-        {player?.username === 'LucidReis' && (
+        {/* Admin Reset Button - show for testers/admins */}
+        {showDebugButtons && (
           <div className="relative">
             <button
               onClick={() => setShowResetConfirm(true)}
