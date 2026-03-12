@@ -1,22 +1,43 @@
 import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../middleware/auth.js';
 import { mockDb } from '../db/mock-db.js';
+import { STARTING_RESOURCES } from '@veilfall/shared';
+
+const STARTER_HEROES: Record<string, { name: string; heroClass: string }> = {
+  ironveil: { name: 'Thorne', heroClass: 'warlord' },
+  aetheri: { name: 'Lyris', heroClass: 'sage' },
+  thornwatch: { name: 'Ashka', heroClass: 'shadowblade' },
+  ashen: { name: 'Kael', heroClass: 'warlord' },
+};
+
+const HERO_CLASS_STATS: Record<string, { strength: number; intellect: number; agility: number; endurance: number }> = {
+  warlord:     { strength: 8, intellect: 3, agility: 4, endurance: 7 },
+  sage:        { strength: 3, intellect: 8, agility: 4, endurance: 5 },
+  shadowblade: { strength: 5, intellect: 4, agility: 8, endurance: 3 },
+  steward:     { strength: 4, intellect: 6, agility: 4, endurance: 6 },
+};
+
+const HERO_CLASS_LEVEL1_ABILITY: Record<string, string> = {
+  warlord:     'rally_cry',
+  sage:        'aether_bolt',
+  shadowblade: 'shadow_strike',
+  steward:     'inspire',
+};
 
 export async function adminRoutes(app: FastifyInstance) {
-  // POST /reset — Reset all game data (admin only)
+  // POST /reset — Reset all game data, keep player accounts
   app.post('/reset', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
 
-    // Only allow LucidReis to reset the game
     if (player.username !== 'LucidReis') {
       return reply.status(403).send({ error: 'Permission denied. Only LucidReis can reset the game.' });
     }
 
     try {
-      // Clear all game data - players, settlements, heroes, etc.
-      mockDb.players.clear();
-      mockDb.playersByEmail.clear();
-      mockDb.playersByUsername.clear();
+      // Save all player accounts before clearing
+      const players = [...mockDb.players.values()];
+
+      // Clear all game data
       mockDb.settlements.clear();
       mockDb.settlementsByPlayer.clear();
       mockDb.heroes.clear();
@@ -37,9 +58,52 @@ export async function adminRoutes(app: FastifyInstance) {
       mockDb.worldBosses.clear();
       mockDb.heroQuests.clear();
       mockDb.dailyRewards.clear();
-      // Don't clear passwordResetTokens as they're transient tokens
 
-      return { message: 'Game reset complete. All player data has been cleared.' };
+      // Clear alliance references from players
+      for (const p of players) {
+        p.allianceId = undefined;
+        mockDb.players.set(p.id, p);
+      }
+
+      // Recreate starting settlement and hero for each player
+      for (const p of players) {
+        const q = Math.floor(Math.random() * 20) - 10;
+        const r = Math.floor(Math.random() * 20) - 10;
+
+        mockDb.createSettlement({
+          id: crypto.randomUUID(),
+          playerId: p.id,
+          name: `${p.username}'s Settlement`,
+          level: 1,
+          q, r, s: -q - r,
+          resources: { ...STARTING_RESOURCES },
+          buildings: [{ type: 'town_center', level: 1, position: 0 }],
+          buildQueue: [],
+          units: {},
+          trainQueue: [],
+          researched: {},
+          researchQueue: null,
+        });
+
+        const starterHero = STARTER_HEROES[p.faction] ?? STARTER_HEROES.ironveil;
+        const heroClass = starterHero.heroClass;
+        const baseStats = HERO_CLASS_STATS[heroClass] ?? { strength: 5, intellect: 5, agility: 5, endurance: 5 };
+        const level1Ability = HERO_CLASS_LEVEL1_ABILITY[heroClass];
+
+        mockDb.createHero({
+          id: crypto.randomUUID(),
+          playerId: p.id,
+          name: starterHero.name,
+          heroClass,
+          level: 1, xp: 0, loyalty: 80, status: 'idle',
+          abilities: level1Ability ? [level1Ability] : [],
+          equipment: { weapon: 'rusty_sword', armor: 'leather_armor', accessory: null, relic: null },
+          stats: { ...baseStats, strength: baseStats.strength + 2, endurance: baseStats.endurance + 3 },
+        });
+      }
+
+      console.log(`[Admin] Game reset by ${player.username}. ${players.length} player(s) restored to initial state.`);
+      return { message: `Game reset complete. ${players.length} player(s) restored to initial state.` };
     } catch (error) {
       console.error('[Admin] Reset failed:', error);
       return reply.status(500).send({ error: 'Reset failed' });
