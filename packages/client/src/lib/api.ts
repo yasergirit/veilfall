@@ -192,4 +192,10 @@ export const api = {
     request<{ story: any[]; daily: any[]; milestones: any[] }>('/quests'),
   claimQuestReward: (questId: string) =>
     request<any>(`/quests/${encodeURIComponent(questId)}/claim`, { method: 'POST' }),
+
+  // Daily Login Rewards
+  getDailyRewardStatus: () =>
+    request<any>('/daily-rewards/status'),
+  claimDailyReward: () =>
+    request<any>('/daily-rewards/claim', { method: 'POST' }),
 };

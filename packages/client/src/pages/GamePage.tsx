@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../stores/auth-store.js';
 import { useGameStore } from '../stores/game-store.js';
 import { api } from '../lib/api.js';
 import { getSocket } from '../lib/socket.js';
+import { analytics } from '../lib/analytics.js';
+import { onRewardCelebration } from '../lib/reward-events.js';
 import HexMap from '../components/HexMap.js';
 import SettlementPanel from '../components/SettlementPanel.js';
 import HeroPanel from '../components/HeroPanel.js';
@@ -23,6 +25,9 @@ import MailPanel from '../components/MailPanel.js';
 import HeroQuestPanel from '../components/HeroQuestPanel.js';
 import ToastContainer from '../components/ToastContainer.js';
 import TutorialOverlay, { isTutorialComplete } from '../components/TutorialOverlay.js';
+import DailyRewardModal from '../components/DailyRewardModal.js';
+import RewardCelebration from '../components/RewardCelebration.js';
+import AdvisorPanel from '../components/AdvisorPanel.js';
 
 const KEY_TO_PANEL: Record<string, GameState['activePanel']> = {
   '1': 'settlement',
@@ -49,6 +54,38 @@ export default function GamePage() {
   const setActivePanel = useGameStore((s) => s.setActivePanel);
   const setSettlements = useGameStore((s) => s.setSettlements);
   const [showTutorial, setShowTutorial] = useState(() => !isTutorialComplete());
+  const [showDailyReward, setShowDailyReward] = useState(false);
+  const [celebration, setCelebration] = useState<{ title: string; subtitle?: string; rewards: Record<string, number> } | null>(null);
+
+  // Check for daily reward on mount
+  useEffect(() => {
+    api.getDailyRewardStatus().then((status) => {
+      if (!status.claimed) {
+        // Delay slightly so tutorial shows first
+        setTimeout(() => setShowDailyReward(true), showTutorial ? 2000 : 500);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDailyRewardClaim = useCallback((rewards: Record<string, number>) => {
+    setShowDailyReward(false);
+    setCelebration({ title: 'Daily Reward!', subtitle: 'Welcome back, Commander', rewards });
+    analytics.dailyRewardClaimed(1);
+    // Refresh settlement data to reflect new resources
+    api.getSettlements().then((data) => setSettlements(data.settlements)).catch(() => {});
+  }, [setSettlements]);
+
+  // Track session start
+  useEffect(() => {
+    analytics.sessionStart();
+  }, []);
+
+  // Listen for reward celebrations from any component (quests, events, etc.)
+  useEffect(() => {
+    return onRewardCelebration((data) => {
+      setCelebration(data);
+    });
+  }, []);
 
   // Fetch settlements on mount
   useEffect(() => {
@@ -132,10 +169,25 @@ export default function GamePage() {
           <div className="absolute inset-0 pointer-events-none z-20">
             <QuestTracker />
             <ChatPanel />
+            <AdvisorPanel />
           </div>
         </div>
       </div>
       {showTutorial && <TutorialOverlay onComplete={() => setShowTutorial(false)} username={player?.username} />}
+      {showDailyReward && !showTutorial && (
+        <DailyRewardModal
+          onClose={() => setShowDailyReward(false)}
+          onClaim={handleDailyRewardClaim}
+        />
+      )}
+      {celebration && (
+        <RewardCelebration
+          title={celebration.title}
+          subtitle={celebration.subtitle}
+          rewards={celebration.rewards}
+          onClose={() => setCelebration(null)}
+        />
+      )}
     </div>
   );
 }

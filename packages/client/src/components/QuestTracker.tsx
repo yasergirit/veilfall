@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api.js';
+import { triggerRewardCelebration } from '../lib/reward-events.js';
 
 interface QuestData {
   id: string;
@@ -57,6 +58,14 @@ export default function QuestTracker() {
     setClaiming(questId);
     try {
       await api.claimQuestReward(questId);
+      // Find the quest to show celebration
+      const allQuests = [...quests.story, ...quests.daily, ...quests.milestones];
+      const quest = allQuests.find((q) => q.id === questId);
+      if (quest?.reward) {
+        const rewards: Record<string, number> = { ...quest.reward.resources };
+        if (quest.reward.xp) rewards.xp = quest.reward.xp;
+        triggerRewardCelebration('Quest Complete!', rewards, quest.title);
+      }
       fetchQuests();
     } catch (err) {
       console.error('[Quest] Claim failed:', questId, err);

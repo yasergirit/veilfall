@@ -212,6 +212,14 @@ export interface MockMail {
   sentAt: number;
 }
 
+export interface MockDailyReward {
+  playerId: string;
+  currentDay: number; // 1-7
+  streak: number;
+  lastClaimDate: string; // YYYY-MM-DD format
+  totalClaimed: number;
+}
+
 export interface MockHeroQuest {
   id: string;
   playerId: string;
@@ -272,6 +280,8 @@ class MockDatabase {
   worldBosses: Map<string, MockWorldBoss> = new Map();
 
   heroQuests: Map<string, MockHeroQuest> = new Map();
+
+  dailyRewards: Map<string, MockDailyReward> = new Map();
 
   passwordResetTokens: Map<string, { playerId: string; email: string; token: string; expiresAt: number }> = new Map();
 

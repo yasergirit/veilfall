@@ -32,23 +32,33 @@ export default function Sidebar() {
 
   return (
     <div
-      className="w-16 flex flex-col items-center py-4 gap-2 border-r border-[var(--ruin-grey)]/20"
+      className="w-16 flex flex-col items-center py-2 gap-0.5 border-r border-[var(--ruin-grey)]/20 overflow-y-auto overflow-x-hidden"
       style={{ background: 'rgba(26, 39, 68, 0.95)' }}
     >
-      {NAV_ITEMS.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => setActivePanel(item.id)}
-          title={item.shortcut ? `${item.label} (${item.shortcut})` : item.label}
-          className={`w-11 h-11 rounded-lg flex items-center justify-center text-lg transition-all ${
-            activePanel === item.id
-              ? 'bg-[var(--aether-violet)]/20 border border-[var(--aether-violet)]/50'
-              : 'hover:bg-[var(--veil-blue)] border border-transparent'
-          }`}
-        >
-          {item.icon}
-        </button>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const isActive = activePanel === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => setActivePanel(item.id)}
+            title={item.shortcut ? `${item.label} (${item.shortcut})` : item.label}
+            className={`w-14 flex flex-col items-center gap-0 py-1.5 px-1 rounded-lg transition-all shrink-0 ${
+              isActive
+                ? 'bg-[var(--aether-violet)]/20 border border-[var(--aether-violet)]/50'
+                : 'hover:bg-[var(--veil-blue)] border border-transparent'
+            }`}
+          >
+            <span className="text-base leading-none">{item.icon}</span>
+            <span
+              className={`text-[8px] leading-tight mt-0.5 truncate w-full text-center ${
+                isActive ? 'text-[var(--aether-violet)]' : 'text-[var(--ruin-grey)]'
+              }`}
+            >
+              {item.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
