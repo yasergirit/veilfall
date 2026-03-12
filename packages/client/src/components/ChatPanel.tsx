@@ -258,8 +258,7 @@ export default function ChatPanel() {
           className="flex-1 flex flex-col overflow-hidden relative"
           style={{
             background: 'url(/assets/gui/chat/chat_main_bg.png) center/cover, rgba(18, 28, 50, 0.97)',
-            border: '16px solid transparent',
-            borderImage: 'url(/assets/gui/panels/content_box_3.png) 48 fill stretch',
+            border: '2px solid #3a2a1a',
           }}
         >
           {/* Channel Tabs */}
