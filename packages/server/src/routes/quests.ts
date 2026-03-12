@@ -477,7 +477,7 @@ function getAllQuestDefs(): QuestDefinition[] {
 export async function questRoutes(app: FastifyInstance) {
 
   // GET /quests — returns all quest state for current player
-  app.get('/', { preHandler: [requireAuth()] }, async (request) => {
+  app.get('/', { preHandler: [requireAuth] }, async (request) => {
     const playerId = request.user.id;
 
     // Ensure story + milestone quests exist for this player
@@ -530,7 +530,7 @@ export async function questRoutes(app: FastifyInstance) {
   });
 
   // POST /quests/:questId/claim — claim reward for completed quest
-  app.post('/:questId/claim', { preHandler: [requireAuth()] }, async (request, reply) => {
+  app.post('/:questId/claim', { preHandler: [requireAuth] }, async (request, reply) => {
     const playerId = request.user.id;
     const { questId } = request.params as { questId: string };
 
