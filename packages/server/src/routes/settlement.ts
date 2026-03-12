@@ -249,7 +249,8 @@ export async function settlementRoutes(app: FastifyInstance) {
   });
 
   // Debug: Add resources (tester/admin only, with email fallback for old tokens)
-  const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+  const ADMIN_EMAILS = ['odgardian@gmail.com'];
+  const TESTER_EMAILS = ['yasergirit@gmail.com'];
   const addResourceSchema = z.object({ resource: z.string() });
 
   app.post('/:settlementId/add-resource', { preHandler: requireAuth }, async (request, reply) => {
@@ -257,8 +258,8 @@ export async function settlementRoutes(app: FastifyInstance) {
     // Check role from JWT, fallback to DB lookup by player ID for old tokens
     const dbPlayer = mockDb.players.get(player.id);
     const isTester = player.role === 'tester' || player.role === 'admin'
-      || TESTER_EMAILS.includes(player.email)
-      || (dbPlayer && (dbPlayer.role === 'tester' || dbPlayer.role === 'admin' || TESTER_EMAILS.includes(dbPlayer.email)));
+      || ADMIN_EMAILS.includes(player.email) || TESTER_EMAILS.includes(player.email)
+      || (dbPlayer && (dbPlayer.role === 'tester' || dbPlayer.role === 'admin' || ADMIN_EMAILS.includes(dbPlayer.email) || TESTER_EMAILS.includes(dbPlayer.email)));
     if (!isTester) {
       return reply.status(403).send({ error: 'Not authorized' });
     }

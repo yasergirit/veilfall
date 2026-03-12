@@ -6,7 +6,8 @@ import type { PlayerRole } from '../db/mock-db.js';
 import { STARTING_RESOURCES } from '@veilfall/shared';
 import { syncPlayer, syncSettlement } from '../db/supabase-sync.js';
 
-const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+const ADMIN_EMAILS = ['odgardian@gmail.com'];
+const TESTER_EMAILS = ['yasergirit@gmail.com'];
 
 const STARTER_HEROES: Record<string, { name: string; heroClass: string }> = {
   ironveil: { name: 'Thorne', heroClass: 'warlord' },
@@ -65,7 +66,7 @@ export async function authRoutes(app: FastifyInstance) {
     const hashedPassword = await bcrypt.hash(body.password, 12);
     const playerId = crypto.randomUUID();
 
-    const role: PlayerRole = TESTER_EMAILS.includes(body.email) ? 'tester' : 'player';
+    const role: PlayerRole = ADMIN_EMAILS.includes(body.email) ? 'admin' : TESTER_EMAILS.includes(body.email) ? 'tester' : 'player';
     const player = mockDb.createPlayer({
       id: playerId,
       username: body.username,
@@ -141,7 +142,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!valid) return reply.status(401).send({ error: 'Invalid email or password' });
 
     // Assign tester role on login if email matches (handles pre-existing accounts)
-    const role: PlayerRole = TESTER_EMAILS.includes(player.email) ? 'tester' : (player.role ?? 'player');
+    const role: PlayerRole = ADMIN_EMAILS.includes(player.email) ? 'admin' : TESTER_EMAILS.includes(player.email) ? 'tester' : (player.role ?? 'player');
     const token = app.jwt.sign({ id: player.id, username: player.username, faction: player.faction, email: player.email, role });
     const refreshToken = app.jwt.sign({ id: player.id, type: 'refresh' }, { expiresIn: '7d' });
     const settlements = mockDb.getSettlementsByPlayer(player.id);

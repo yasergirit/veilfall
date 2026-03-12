@@ -29,13 +29,14 @@ export async function adminRoutes(app: FastifyInstance) {
   app.post('/reset', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
 
-    const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+    const ADMIN_EMAILS = ['odgardian@gmail.com'];
+    const TESTER_EMAILS = ['yasergirit@gmail.com'];
 
     // Check role from JWT, fallback to DB lookup by player ID for old tokens
     const dbPlayer = mockDb.players.get(player.id);
     const isAllowed = player.username === 'LucidReis' || player.role === 'tester' || player.role === 'admin'
-      || TESTER_EMAILS.includes(player.email)
-      || (dbPlayer && (dbPlayer.role === 'tester' || dbPlayer.role === 'admin' || TESTER_EMAILS.includes(dbPlayer.email)));
+      || ADMIN_EMAILS.includes(player.email) || TESTER_EMAILS.includes(player.email)
+      || (dbPlayer && (dbPlayer.role === 'tester' || dbPlayer.role === 'admin' || ADMIN_EMAILS.includes(dbPlayer.email) || TESTER_EMAILS.includes(dbPlayer.email)));
 
     if (!isAllowed) {
       return reply.status(403).send({ error: 'Permission denied.' });
