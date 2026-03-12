@@ -16,8 +16,11 @@ function hexDistance(q1: number, r1: number, q2: number, r2: number): number {
   return Math.max(Math.abs(q1 - q2), Math.abs(r1 - r2), Math.abs(s1 - s2));
 }
 
-/** Cost per spy mission. */
-const SPY_COST: Record<string, number> = { food: 100, iron: 50 };
+/** Cost per spy mission, by mission type. */
+const SPY_COSTS: Record<string, Record<string, number>> = {
+  intel: { food: 100, iron: 50 },
+  sabotage: { food: 150, iron: 80 },
+};
 
 /** Travel time per hex tile in milliseconds (dev speed). */
 const TRAVEL_TIME_PER_HEX_MS = 15 * 1000;
@@ -43,7 +46,8 @@ export async function spyRoutes(app: FastifyInstance) {
     }
 
     // Validate resources
-    for (const [resource, amount] of Object.entries(SPY_COST)) {
+    const spyCost = SPY_COSTS[type] ?? SPY_COSTS.intel;
+    for (const [resource, amount] of Object.entries(spyCost)) {
       if ((settlement.resources[resource] ?? 0) < amount) {
         return reply.status(400).send({
           error: `Not enough ${resource} (have ${Math.floor(settlement.resources[resource] ?? 0)}, need ${amount})`,
@@ -65,7 +69,7 @@ export async function spyRoutes(app: FastifyInstance) {
     }
 
     // Deduct resources
-    for (const [resource, amount] of Object.entries(SPY_COST)) {
+    for (const [resource, amount] of Object.entries(spyCost)) {
       settlement.resources[resource] -= amount;
     }
     mockDb.updateSettlement(settlementId, { resources: settlement.resources });

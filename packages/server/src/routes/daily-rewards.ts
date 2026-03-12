@@ -11,12 +11,12 @@ interface DayReward {
 
 const REWARD_CYCLE: DayReward[] = [
   { day: 1, resources: { food: 200, wood: 200 } },
-  { day: 2, resources: { stone: 300, iron: 200 } },
-  { day: 3, resources: { food: 500, wood: 500, stone: 300 } },
-  { day: 4, resources: { aether_stone: 100 } },
-  { day: 5, resources: { food: 800, wood: 800, stone: 500, iron: 300 } },
-  { day: 6, resources: { aether_stone: 200 } },
-  { day: 7, resources: { food: 1000, wood: 1000, stone: 800, iron: 500, aether_stone: 300 } },
+  { day: 2, resources: { stone: 250, iron: 150 } },
+  { day: 3, resources: { food: 400, wood: 400, stone: 200 } },
+  { day: 4, resources: { aether_stone: 80 } },
+  { day: 5, resources: { food: 600, wood: 600, stone: 400, iron: 200 } },
+  { day: 6, resources: { aether_stone: 150 } },
+  { day: 7, resources: { food: 800, wood: 800, stone: 500, iron: 350, aether_stone: 250 } },
 ];
 
 // ─── Helpers ───

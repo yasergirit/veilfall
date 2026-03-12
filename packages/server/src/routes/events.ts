@@ -7,7 +7,7 @@ import { pushNotification } from './notifications.js';
 // Event Definitions
 // ---------------------------------------------------------------------------
 
-const EVENT_DURATION = 10 * 60 * 1000; // 10 minutes
+const EVENT_DURATION = 30 * 60 * 1000; // 30 minutes
 
 interface SeasonalEventTemplate {
   type: MockSeasonalEvent['type'];
@@ -23,28 +23,28 @@ const EVENT_TEMPLATES: SeasonalEventTemplate[] = [
     type: 'harvest_moon',
     name: 'Harvest Moon Festival',
     description:
-      'The Harvest Moon rises over the realm! Gather resources under its golden glow. All resource production is boosted by 50% during this festival.',
-    objectives: { description: 'Gather 2000 total resources (food + wood + stone + iron)', target: 2000 },
-    rewards: { aether_stone: 500 },
-    bonusDescription: '+50% resource production during event',
+      'The Harvest Moon rises over the realm! Gather resources under its golden glow. All resource production is boosted by 30% during this festival.',
+    objectives: { description: 'Gather 3000 total resources (food + wood + stone + iron)', target: 3000 },
+    rewards: { aether_stone: 350 },
+    bonusDescription: '+30% resource production during event',
   },
   {
     type: 'aether_storm',
     name: 'Aether Storm',
     description:
-      'A violent Aether Storm sweeps the land! Harness its chaotic energy to accelerate your construction efforts. Research time is halved.',
+      'A violent Aether Storm sweeps the land! Harness its chaotic energy to accelerate your construction efforts. Research time is reduced by 30%.',
     objectives: { description: 'Build or upgrade 3 buildings', target: 3 },
-    rewards: { food: 1000, wood: 1000, stone: 500 },
-    bonusDescription: 'Research time -50%',
+    rewards: { food: 800, wood: 800, stone: 400 },
+    bonusDescription: 'Research time -30%',
   },
   {
     type: 'ironclad_tournament',
     name: 'Ironclad Tournament',
     description:
-      'The Ironclad Tournament has begun! Prove your military might by training soldiers for the arena. Training costs are reduced by 25%.',
-    objectives: { description: 'Train 30 military units', target: 30 },
-    rewards: { aether_stone: 300 },
-    bonusDescription: 'Training cost -25%',
+      'The Ironclad Tournament has begun! Prove your military might by training soldiers for the arena. Training costs are reduced by 20%.',
+    objectives: { description: 'Train 25 military units', target: 25 },
+    rewards: { aether_stone: 200 },
+    bonusDescription: 'Training cost -20%',
   },
 ];
 
@@ -53,6 +53,7 @@ const EVENT_TEMPLATES: SeasonalEventTemplate[] = [
 // ---------------------------------------------------------------------------
 
 let rotationIndex = 0;
+let nextEventAt = 0; // timestamp when next event can start after rest period
 
 // ---------------------------------------------------------------------------
 // Exported Helpers — called by game-loop/index.ts
@@ -128,14 +129,16 @@ export function tickEventRotation(): void {
         });
       }
 
-      // Start the next event immediately after expiry
-      startNextEvent();
+      // Schedule next event after rest period
+      const REST_PERIOD_MS = 15 * 60 * 1000; // 15 minutes
+      nextEventAt = now + REST_PERIOD_MS;
+      console.log(`[Events] Next event scheduled at ${new Date(nextEventAt).toISOString()} (after ${REST_PERIOD_MS / 60000}min rest)`);
     }
     return;
   }
 
-  // No active event — start one if there are players
-  if (mockDb.players.size > 0) {
+  // No active event — start one if there are players and rest period has elapsed
+  if (mockDb.players.size > 0 && now >= nextEventAt) {
     startNextEvent();
   }
 }
@@ -178,7 +181,7 @@ function startNextEvent(): void {
  */
 export function getHarvestMoonMultiplier(): number {
   const active = mockDb.getActiveSeasonalEvent();
-  return active && active.type === 'harvest_moon' ? 1.5 : 1.0;
+  return active && active.type === 'harvest_moon' ? 1.3 : 1.0;
 }
 
 /**
@@ -187,7 +190,7 @@ export function getHarvestMoonMultiplier(): number {
  */
 export function getAetherStormResearchMultiplier(): number {
   const active = mockDb.getActiveSeasonalEvent();
-  return active && active.type === 'aether_storm' ? 0.5 : 1.0;
+  return active && active.type === 'aether_storm' ? 0.7 : 1.0;
 }
 
 /**
@@ -196,7 +199,7 @@ export function getAetherStormResearchMultiplier(): number {
  */
 export function getIroncladCostMultiplier(): number {
   const active = mockDb.getActiveSeasonalEvent();
-  return active && active.type === 'ironclad_tournament' ? 0.75 : 1.0;
+  return active && active.type === 'ironclad_tournament' ? 0.80 : 1.0;
 }
 
 // ---------------------------------------------------------------------------

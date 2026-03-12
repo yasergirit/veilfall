@@ -42,7 +42,7 @@ export interface MockMarch {
   fromR: number;
   toQ: number;
   toR: number;
-  type: 'attack' | 'scout' | 'reinforce';
+  type: 'attack' | 'scout' | 'reinforce' | 'raid';
   startedAt: number;
   arrivedAt: number;
   status: 'marching' | 'arrived' | 'returning';

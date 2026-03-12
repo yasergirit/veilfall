@@ -2,8 +2,8 @@ import { mockDb } from '../db/mock-db.js';
 import { resolveCombat, applyCombatLosses, getHeroCombatBonus } from './combat.js';
 import { pushNotification } from '../routes/notifications.js';
 import { tickEventRotation, getActiveEvent, incrementProgress, getHarvestMoonMultiplier } from '../routes/events.js';
-import { FACTION_CONFIGS } from '@veilfall/shared';
-import type { Faction } from '@veilfall/shared';
+import { FACTION_CONFIGS, AETHER_CYCLES, AETHER_PHASE_ORDER } from '@veilfall/shared';
+import type { Faction, AetherPhase } from '@veilfall/shared';
 import { WORLD_BOSS_TEMPLATES } from '../routes/world-boss.js';
 import { QUEST_DEFINITIONS } from '../routes/hero-quests.js';
 import { EQUIPMENT_ITEMS } from '../routes/heroes.js';
@@ -11,20 +11,21 @@ import { incrementQuestProgress } from '../routes/quests.js';
 import { getIO } from '../websocket/index.js';
 
 // ── Aether Harvest Cycle State ──
-const AETHER_DORMANT_DURATION = 300_000; // 5 minutes
-const AETHER_SURGE_DURATION = 120_000;   // 2 minutes
-const AETHER_SURGE_MULTIPLIER = 3;
-
-let aetherCyclePhase: 'dormant' | 'surge' = 'dormant';
+let aetherPhaseIndex = 0;
+let aetherCyclePhase: AetherPhase = 'dormant';
 let aetherCycleChangedAt = Date.now();
 
+function getAetherMultiplier(): number {
+  return AETHER_CYCLES[aetherCyclePhase].yieldMultiplier;
+}
+
 export function getAetherCycle() {
-  const duration = aetherCyclePhase === 'dormant' ? AETHER_DORMANT_DURATION : AETHER_SURGE_DURATION;
+  const duration = AETHER_CYCLES[aetherCyclePhase].durationMs;
   return {
     phase: aetherCyclePhase,
     changedAt: aetherCycleChangedAt,
     nextChangeAt: aetherCycleChangedAt + duration,
-    surgeMultiplier: AETHER_SURGE_MULTIPLIER,
+    surgeMultiplier: AETHER_CYCLES.surge.yieldMultiplier,
   };
 }
 
@@ -63,10 +64,11 @@ function processHeroXp(playerId: string, marchId: string, xpGained: number): { i
   const oldLevel = hero.level;
   hero.xp += xpGained;
 
-  // Level threshold: level * 100 XP per level
+  // Level threshold: level * 100 * (1 + level * 0.05) XP per level
+  const xpForLevel = (lvl: number) => Math.floor(lvl * 100 * (1 + lvl * 0.05));
   let leveledUp = false;
-  while (hero.xp >= hero.level * 100) {
-    hero.xp -= hero.level * 100;
+  while (hero.xp >= xpForLevel(hero.level)) {
+    hero.xp -= xpForLevel(hero.level);
     hero.level += 1;
     leveledUp = true;
 
@@ -101,14 +103,14 @@ function processHeroXp(playerId: string, marchId: string, xpGained: number): { i
 
 function spawnMapEvents() {
   const activeEvents = mockDb.getActiveMapEvents();
-  if (activeEvents.length >= 20) return;
+  if (activeEvents.length >= 15) return;
 
   const now = Date.now();
-  const THIRTY_MINUTES = 30 * 60 * 1000;
-  const count = randomInt(1, 3);
+  const FORTY_FIVE_MINUTES = 45 * 60 * 1000;
+  const count = 1; // v2: 1 event per spawn tick instead of 1-3
 
   for (let i = 0; i < count; i++) {
-    if (activeEvents.length + i >= 20) break;
+    if (activeEvents.length + i >= 15) break;
 
     const roll = Math.random();
     let type: 'ruin' | 'resource_node' | 'npc_camp' | 'aether_surge';
@@ -134,16 +136,16 @@ function spawnMapEvents() {
       case 'ruin':
         guardians = { militia: randomInt(3, 5) };
         rewards = {
-          food: randomInt(100, 500),
-          wood: randomInt(100, 300),
-          stone: randomInt(50, 200),
+          food: randomInt(100, 400),
+          wood: randomInt(100, 250),
+          stone: randomInt(50, 150),
         };
         description = `An ancient ruin guarded by ${guardians.militia} militia. Rich with forgotten treasures.`;
         break;
       case 'resource_node': {
         const resTypes = ['food', 'wood', 'stone', 'iron'];
         const resType = resTypes[Math.floor(Math.random() * resTypes.length)];
-        rewards = { [resType]: randomInt(200, 800) };
+        rewards = { [resType]: randomInt(150, 600) };
         description = `A rich deposit of ${resType} waiting to be harvested.`;
         break;
       }
@@ -153,14 +155,14 @@ function spawnMapEvents() {
           archer: randomInt(2, 4),
         };
         rewards = {
-          food: randomInt(200, 600),
-          wood: randomInt(150, 400),
-          iron: randomInt(50, 200),
+          food: randomInt(150, 500),
+          wood: randomInt(100, 350),
+          iron: randomInt(50, 150),
         };
         description = `A hostile camp with ${guardians.militia} militia and ${guardians.archer} archers. Defeat them for substantial rewards.`;
         break;
       case 'aether_surge':
-        rewards = { aether_stone: randomInt(50, 200) };
+        rewards = { aether_stone: randomInt(30, 150) };
         description = 'A surge of raw aether energy. Claim it before it dissipates.';
         break;
     }
@@ -175,7 +177,7 @@ function spawnMapEvents() {
       rewards,
       guardians,
       status: 'active',
-      expiresAt: now + THIRTY_MINUTES,
+      expiresAt: now + FORTY_FIVE_MINUTES,
       createdAt: now,
     });
 
@@ -194,7 +196,7 @@ function expireMapEvents() {
 }
 
 export function startGameLoop() {
-  // Economy tick — every 10 seconds (accelerated for dev)
+  // Economy tick — every 15 seconds
   setInterval(() => {
     const harvestMoonMultiplier = getHarvestMoonMultiplier();
     const activeEvent = getActiveEvent();
@@ -211,10 +213,11 @@ export function startGameLoop() {
         const rates = RESOURCE_RATES[building.type];
         if (rates) {
           for (const [res, rate] of Object.entries(rates)) {
-            // rate is per hour, tick is 10s -> /360, apply faction multiplier
+            // rate is per hour, tick is 15s -> /240, apply faction multiplier
             // Apply aether surge multiplier to aether_stone during surge phase
-            const aetherMultiplier = (res === 'aether_stone' && aetherCyclePhase === 'surge') ? AETHER_SURGE_MULTIPLIER : 1;
-            const produced = (rate * building.level * gatherMultiplier * aetherMultiplier * harvestMoonMultiplier) / 360;
+            const aetherMultiplier = (res === 'aether_stone') ? getAetherMultiplier() : 1;
+            const effectiveLevel = Math.pow(building.level, 0.85);
+            const produced = (rate * effectiveLevel * gatherMultiplier * aetherMultiplier * harvestMoonMultiplier) / 240;
             settlement.resources[res] = (settlement.resources[res] ?? 0) + produced;
 
             // Track resources gathered for harvest_moon event (food, wood, stone, iron only)
@@ -239,9 +242,9 @@ export function startGameLoop() {
         });
       }
     }
-  }, 10_000);
+  }, 15_000);
 
-  // Building queue processor — every 2 seconds
+  // Building queue processor — every 5 seconds
   setInterval(() => {
     const now = Date.now();
     for (const settlement of mockDb.settlements.values()) {
@@ -291,9 +294,9 @@ export function startGameLoop() {
         settlement.buildQueue.splice(idx, 1);
       }
     }
-  }, 2_000);
+  }, 5_000);
 
-  // Train queue processor — every 2 seconds
+  // Train queue processor — every 5 seconds
   setInterval(() => {
     const now = Date.now();
     for (const settlement of mockDb.settlements.values()) {
@@ -335,9 +338,9 @@ export function startGameLoop() {
         settlement.trainQueue.splice(idx, 1);
       }
     }
-  }, 2_000);
+  }, 5_000);
 
-  // March processor — every 5 seconds
+  // March processor — every 10 seconds
   setInterval(() => {
     const now = Date.now();
     for (const march of mockDb.marches.values()) {
@@ -582,9 +585,9 @@ export function startGameLoop() {
         }
       }
     }
-  }, 5_000);
+  }, 10_000);
 
-  // Spy mission processor — every 5 seconds
+  // Spy mission processor — every 10 seconds
   setInterval(() => {
     const now = Date.now();
     for (const mission of mockDb.spyMissions.values()) {
@@ -606,8 +609,8 @@ export function startGameLoop() {
       const defenderSpyLevel = defenderSpyGuild?.level ?? 0;
 
       if (mission.type === 'intel') {
-        // Intel: 70% base + 5% per spy_guild level, capped at 95%, minus 10% per defender spy_guild level
-        const successChance = Math.min(0.70 + attackerSpyLevel * 0.05, 0.95) - defenderSpyLevel * 0.10;
+        // Intel: 65% base + 4% per spy_guild level, capped at 90%, minus 8% per defender spy_guild level
+        const successChance = Math.min(0.65 + attackerSpyLevel * 0.04, 0.90) - defenderSpyLevel * 0.08;
         const roll = Math.random();
 
         if (roll < successChance) {
@@ -657,13 +660,13 @@ export function startGameLoop() {
           console.log(`[GameLoop] Spy intel mission ${mission.id} caught at (${targetSettlement.q},${targetSettlement.r})`);
         }
       } else if (mission.type === 'sabotage') {
-        // Sabotage: 50% base + 5% per spy_guild level, capped at 80%, minus 10% per defender spy_guild level
-        const successChance = Math.min(0.50 + attackerSpyLevel * 0.05, 0.80) - defenderSpyLevel * 0.10;
+        // Sabotage: 45% base + 4% per spy_guild level, capped at 75%, minus 8% per defender spy_guild level
+        const successChance = Math.min(0.45 + attackerSpyLevel * 0.04, 0.75) - defenderSpyLevel * 0.08;
         const roll = Math.random();
 
         if (roll < successChance) {
           // Success — pick a random building and reduce its level by 1 (min 1)
-          const eligibleBuildings = targetSettlement.buildings.filter((b) => b.level > 1);
+          const eligibleBuildings = targetSettlement.buildings.filter((b) => b.level > 1 && b.type !== 'town_center');
 
           if (eligibleBuildings.length > 0) {
             const target = eligibleBuildings[Math.floor(Math.random() * eligibleBuildings.length)];
@@ -733,9 +736,9 @@ export function startGameLoop() {
         }
       }
     }
-  }, 5_000);
+  }, 10_000);
 
-  // Research queue processor — every 2 seconds
+  // Research queue processor — every 5 seconds
   setInterval(() => {
     const now = Date.now();
     for (const settlement of mockDb.settlements.values()) {
@@ -763,54 +766,46 @@ export function startGameLoop() {
         console.log(`[GameLoop] ${settlement.name}: researched ${type} -> Lv${level}`);
       }
     }
-  }, 2_000);
+  }, 5_000);
 
-  // Map event spawner — every 60 seconds
+  // Map event spawner — every 120 seconds
   setInterval(() => {
     spawnMapEvents();
     expireMapEvents();
-  }, 60_000);
+  }, 120_000);
 
-  // Aether Harvest Cycle — check every 5 seconds
+  // Aether Harvest Cycle — check every 15 seconds (4-phase: dormant → rising → surge → fading)
   setInterval(() => {
     const now = Date.now();
-    const duration = aetherCyclePhase === 'dormant' ? AETHER_DORMANT_DURATION : AETHER_SURGE_DURATION;
+    const duration = AETHER_CYCLES[aetherCyclePhase].durationMs;
 
     if (now >= aetherCycleChangedAt + duration) {
-      const previousPhase = aetherCyclePhase;
-      aetherCyclePhase = previousPhase === 'dormant' ? 'surge' : 'dormant';
+      aetherPhaseIndex = (aetherPhaseIndex + 1) % AETHER_PHASE_ORDER.length;
+      aetherCyclePhase = AETHER_PHASE_ORDER[aetherPhaseIndex];
       aetherCycleChangedAt = now;
 
-      if (aetherCyclePhase === 'surge') {
-        console.log('[GameLoop] Aether Harvest Cycle: SURGE phase started — aether_stone production x3');
-        // Notify all players
-        for (const player of mockDb.players.values()) {
-          pushNotification(player.id, {
-            type: 'aether_cycle',
-            title: 'Aether Surge Active!',
-            message: 'Aether Surge Active! Aether production tripled for 2 minutes!',
-          });
-        }
-      } else {
-        console.log('[GameLoop] Aether Harvest Cycle: DORMANT phase started — normal production');
-        for (const player of mockDb.players.values()) {
-          pushNotification(player.id, {
-            type: 'aether_cycle',
-            title: 'Aether Surge Ended',
-            message: 'Aether Surge has ended. Production returns to normal.',
-          });
-        }
+      const multiplier = AETHER_CYCLES[aetherCyclePhase].yieldMultiplier;
+      console.log(`[GameLoop] Aether Harvest Cycle: ${aetherCyclePhase.toUpperCase()} phase — aether multiplier x${multiplier}`);
+
+      for (const player of mockDb.players.values()) {
+        pushNotification(player.id, {
+          type: 'aether_cycle',
+          title: `Aether Phase: ${aetherCyclePhase.charAt(0).toUpperCase() + aetherCyclePhase.slice(1)}`,
+          message: `Aether production is now x${multiplier}.`,
+        });
       }
     }
-  }, 5_000);
-
-  // Seasonal event rotation — every 15 seconds check for expiry/rotation
-  setInterval(() => {
-    tickEventRotation();
   }, 15_000);
 
-  // World Boss spawner — every 60 seconds
-  const WORLD_BOSS_EXPIRE_MS = 15 * 60 * 1000; // 15 minutes
+  // Seasonal event rotation — every 30 seconds check for expiry/rotation
+  setInterval(() => {
+    tickEventRotation();
+  }, 30_000);
+
+  // World Boss spawner — every 120 seconds
+  const WORLD_BOSS_EXPIRE_MS = 20 * 60 * 1000; // 20 minutes
+  const WORLD_BOSS_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+  let lastBossDespawnedAt: number | null = null;
   const bossTypeKeys = Object.keys(WORLD_BOSS_TEMPLATES);
 
   function tickWorldBosses() {
@@ -820,6 +815,7 @@ export function startGameLoop() {
     for (const boss of mockDb.getActiveWorldBosses()) {
       if (now >= boss.expiresAt) {
         mockDb.updateWorldBoss(boss.id, { status: 'despawned' });
+        lastBossDespawnedAt = now;
         console.log(`[WorldBoss] ${boss.name} despawned — time expired at (${boss.q},${boss.r})`);
 
         for (const player of mockDb.players.values()) {
@@ -834,6 +830,7 @@ export function startGameLoop() {
 
     // Spawn a new boss if none are active
     const activeBosses = mockDb.getActiveWorldBosses();
+    if (lastBossDespawnedAt && now - lastBossDespawnedAt < WORLD_BOSS_COOLDOWN_MS) return; // skip spawn during cooldown
     if (activeBosses.length === 0) {
       const typeKey = bossTypeKeys[Math.floor(Math.random() * bossTypeKeys.length)];
       const template = WORLD_BOSS_TEMPLATES[typeKey];
@@ -872,9 +869,9 @@ export function startGameLoop() {
     }
   }
 
-  // Spawn first boss immediately, then check every 60 seconds
+  // Spawn first boss immediately, then check every 120 seconds
   tickWorldBosses();
-  setInterval(tickWorldBosses, 60_000);
+  setInterval(tickWorldBosses, 120_000);
 
   // Hero quest processor — every 5 seconds
   setInterval(() => {
@@ -946,11 +943,12 @@ export function startGameLoop() {
         const rewards = { xp, resources, equipment, loreFragment };
 
         // Grant XP to hero
+        const xpForLevel = (lvl: number) => Math.floor(lvl * 100 * (1 + lvl * 0.05));
         const oldLevel = hero.level;
         hero.xp += xp;
         let leveledUp = false;
-        while (hero.xp >= hero.level * 100) {
-          hero.xp -= hero.level * 100;
+        while (hero.xp >= xpForLevel(hero.level)) {
+          hero.xp -= xpForLevel(hero.level);
           hero.level += 1;
           leveledUp = true;
           const statKeys: Array<keyof typeof hero.stats> = ['strength', 'intellect', 'agility', 'endurance'];
@@ -1016,9 +1014,10 @@ export function startGameLoop() {
         // Failed — consolation XP (20% of normal range)
         const consolationXp = Math.floor(randomInt(definition.rewards.xpMin, definition.rewards.xpMax) * 0.2);
 
+        const xpForLevel = (lvl: number) => Math.floor(lvl * 100 * (1 + lvl * 0.05));
         hero.xp += consolationXp;
-        while (hero.xp >= hero.level * 100) {
-          hero.xp -= hero.level * 100;
+        while (hero.xp >= xpForLevel(hero.level)) {
+          hero.xp -= xpForLevel(hero.level);
           hero.level += 1;
           const statKeys: Array<keyof typeof hero.stats> = ['strength', 'intellect', 'agility', 'endurance'];
           const randomStat = statKeys[Math.floor(Math.random() * statKeys.length)];
@@ -1057,7 +1056,7 @@ export function startGameLoop() {
         console.log(`[HeroQuest] ${hero.name} failed ${quest.questType} quest — ${consolationXp} consolation XP`);
       }
     }
-  }, 5_000);
+  }, 10_000);
 
   // Spawn initial batch of events on startup
   spawnMapEvents();
@@ -1067,5 +1066,5 @@ export function startGameLoop() {
     tickEventRotation();
   }, 5_000);
 
-  console.log('[GameLoop] Economy: 10s | Build queue: 2s | Train queue: 2s | March: 5s | Spy missions: 5s | Research: 2s | Map events: 60s | Aether cycle: 5s | Seasonal events: 15s | World boss: 120s | Hero quests: 5s');
+  console.log('[GameLoop] Economy: 15s | Build queue: 5s | Train queue: 5s | March: 10s | Spy missions: 10s | Research: 5s | Map events: 120s | Aether cycle: 15s | Seasonal events: 30s | World boss: 120s | Hero quests: 10s');
 }

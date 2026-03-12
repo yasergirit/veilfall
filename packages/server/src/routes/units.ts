@@ -3,12 +3,12 @@ import { requireAuth } from '../middleware/auth.js';
 import { mockDb } from '../db/mock-db.js';
 import { z } from 'zod';
 
-const UNIT_CONFIGS: Record<string, { cost: Record<string, number>; timePerUnit: number; attack: number; defense: number; speed: number; carry: number; requires: string }> = {
-  militia:      { cost: { food: 30, wood: 20 }, timePerUnit: 15, attack: 10, defense: 15, speed: 8, carry: 20, requires: 'militia_barracks' },
-  archer:       { cost: { food: 40, wood: 30, iron: 10 }, timePerUnit: 20, attack: 18, defense: 8, speed: 9, carry: 15, requires: 'militia_barracks' },
-  shieldbearer: { cost: { food: 50, wood: 20, iron: 30 }, timePerUnit: 25, attack: 8, defense: 25, speed: 6, carry: 10, requires: 'militia_barracks' },
-  scout:        { cost: { food: 20, wood: 10 }, timePerUnit: 10, attack: 3, defense: 3, speed: 18, carry: 5, requires: 'scout_tower' },
-  siege_ram:    { cost: { wood: 100, iron: 60, stone: 40 }, timePerUnit: 60, attack: 40, defense: 5, speed: 3, carry: 0, requires: 'militia_barracks' },
+const UNIT_CONFIGS: Record<string, { cost: Record<string, number>; timePerUnit: number; attack: number; defense: number; speed: number; carry: number; hp: number; requires: string }> = {
+  militia:      { cost: { food: 30, wood: 20 }, timePerUnit: 15, attack: 10, defense: 15, speed: 8, carry: 20, hp: 40, requires: 'militia_barracks' },
+  archer:       { cost: { food: 40, wood: 30, iron: 10 }, timePerUnit: 20, attack: 18, defense: 8, speed: 9, carry: 15, hp: 30, requires: 'militia_barracks' },
+  shieldbearer: { cost: { food: 50, wood: 20, iron: 30 }, timePerUnit: 25, attack: 8, defense: 25, speed: 6, carry: 10, hp: 55, requires: 'militia_barracks' },
+  scout:        { cost: { food: 20, wood: 10 }, timePerUnit: 10, attack: 3, defense: 3, speed: 18, carry: 5, hp: 15, requires: 'scout_tower' },
+  siege_ram:    { cost: { wood: 100, iron: 60, stone: 40 }, timePerUnit: 60, attack: 40, defense: 5, speed: 3, carry: 0, hp: 60, requires: 'militia_barracks' },
 };
 
 const trainSchema = z.object({

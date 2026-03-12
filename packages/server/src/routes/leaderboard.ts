@@ -14,6 +14,7 @@ interface PlayerScore {
   military: number;
   buildings: number;
   totalResources: number;
+  research: number;
 }
 
 function computePlayerScores(): PlayerScore[] {
@@ -25,15 +26,18 @@ function computePlayerScores(): PlayerScore[] {
       .map((id) => mockDb.settlements.get(id))
       .filter(Boolean);
 
-    let totalSettlementLevels = 0;
+    let totalBuildingLevels = 0;
+    let totalResearchLevels = 0;
     let totalBuildings = 0;
     let totalUnits = 0;
     let totalResources = 0;
 
     for (const s of settlements) {
       if (!s) continue;
-      totalSettlementLevels += s.level;
       totalBuildings += s.buildings.length;
+
+      for (const b of s.buildings) totalBuildingLevels += b.level;
+      for (const level of Object.values(s.researched)) totalResearchLevels += (level as number);
 
       for (const count of Object.values(s.units)) {
         totalUnits += count;
@@ -44,11 +48,16 @@ function computePlayerScores(): PlayerScore[] {
       }
     }
 
+    // Add hero levels
+    const heroes = mockDb.getHeroesByPlayer ? mockDb.getHeroesByPlayer(playerId) : [];
+    const heroLevelsSum = heroes.reduce((sum: number, h: any) => sum + h.level, 0);
+
     const power =
-      totalSettlementLevels * 100 +
-      totalBuildings * 50 +
-      totalUnits * 10 +
-      Math.floor(totalResources / 100);
+      totalBuildingLevels * 80 +
+      totalUnits * 12 +
+      totalResearchLevels * 60 +
+      Math.floor(totalResources / 150) +
+      heroLevelsSum * 20;
 
     scores.push({
       playerId,
@@ -59,13 +68,14 @@ function computePlayerScores(): PlayerScore[] {
       military: totalUnits,
       buildings: totalBuildings,
       totalResources,
+      research: totalResearchLevels,
     });
   }
 
   return scores;
 }
 
-type RankingType = 'power' | 'settlements' | 'military' | 'buildings';
+type RankingType = 'power' | 'settlements' | 'military' | 'buildings' | 'research';
 
 function scoreForType(entry: PlayerScore, type: RankingType): number {
   switch (type) {
@@ -77,6 +87,8 @@ function scoreForType(entry: PlayerScore, type: RankingType): number {
       return entry.military;
     case 'buildings':
       return entry.buildings;
+    case 'research':
+      return entry.research;
   }
 }
 
@@ -110,7 +122,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
   app.get('/rankings', async (request) => {
     const query = request.query as { type?: string; limit?: string };
     const type: RankingType =
-      query.type && ['power', 'settlements', 'military', 'buildings'].includes(query.type)
+      query.type && ['power', 'settlements', 'military', 'buildings', 'research'].includes(query.type)
         ? (query.type as RankingType)
         : 'power';
 

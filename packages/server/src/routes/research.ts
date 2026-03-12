@@ -4,14 +4,14 @@ import { mockDb } from '../db/mock-db.js';
 import { z } from 'zod';
 
 const RESEARCH_TREE: Record<string, { name: string; description: string; maxLevel: number; cost: Record<string, number>; timeSeconds: number; requires?: string; effects: string }> = {
-  agriculture:     { name: 'Agriculture',      description: 'Improve food production',         maxLevel: 10, cost: { food: 100, wood: 50 },             timeSeconds: 60,  effects: '+10% food/hr per level' },
-  forestry:        { name: 'Forestry',          description: 'Improve wood production',         maxLevel: 10, cost: { food: 50, wood: 100 },             timeSeconds: 60,  effects: '+10% wood/hr per level' },
-  masonry:         { name: 'Masonry',           description: 'Improve stone production',        maxLevel: 10, cost: { wood: 100, stone: 80 },            timeSeconds: 75,  effects: '+10% stone/hr per level' },
-  metallurgy:      { name: 'Metallurgy',        description: 'Improve iron production',         maxLevel: 10, cost: { wood: 80, iron: 100 },             timeSeconds: 90,  effects: '+10% iron/hr per level' },
-  aether_studies:  { name: 'Aether Studies',    description: 'Improve aether harvesting',       maxLevel: 10, cost: { aether_stone: 30, iron: 50 },      timeSeconds: 120, effects: '+10% aether/hr per level' },
+  agriculture:     { name: 'Agriculture',      description: 'Improve food production',         maxLevel: 10, cost: { food: 100, wood: 50 },             timeSeconds: 60,  effects: '+8% food/hr per level' },
+  forestry:        { name: 'Forestry',          description: 'Improve wood production',         maxLevel: 10, cost: { food: 50, wood: 100 },             timeSeconds: 60,  effects: '+8% wood/hr per level' },
+  masonry:         { name: 'Masonry',           description: 'Improve stone production',        maxLevel: 10, cost: { wood: 100, stone: 80 },            timeSeconds: 75,  effects: '+8% stone/hr per level' },
+  metallurgy:      { name: 'Metallurgy',        description: 'Improve iron production',         maxLevel: 10, cost: { wood: 80, iron: 100 },             timeSeconds: 90,  effects: '+8% iron/hr per level' },
+  aether_studies:  { name: 'Aether Studies',    description: 'Improve aether harvesting',       maxLevel: 10, cost: { aether_stone: 30, iron: 50 },      timeSeconds: 120, effects: '+8% aether/hr per level' },
   fortification:   { name: 'Fortification',     description: 'Strengthen defenses',             maxLevel: 10, cost: { stone: 150, iron: 80 },            timeSeconds: 90,  effects: '+5% defense per level' },
   tactics:         { name: 'Tactics',           description: 'Improve military effectiveness',  maxLevel: 10, cost: { food: 100, iron: 60 },             timeSeconds: 90,  requires: 'militia_barracks', effects: '+5% attack per level' },
-  logistics:       { name: 'Logistics',         description: 'Faster marches and more carry',   maxLevel: 10, cost: { food: 80, wood: 80 },              timeSeconds: 75,  effects: '+5% speed, +10% carry per level' },
+  logistics:       { name: 'Logistics',         description: 'Faster marches and more carry',   maxLevel: 10, cost: { food: 80, wood: 80 },              timeSeconds: 75,  effects: '+5% speed, +8% carry per level' },
   cartography:     { name: 'Cartography',       description: 'Reveal more of the map',          maxLevel: 5,  cost: { wood: 60, aether_stone: 20 },     timeSeconds: 90,  requires: 'scout_tower', effects: '+2 tile vision per level' },
   aether_mastery:  { name: 'Aether Mastery',    description: 'Unlock advanced aether abilities', maxLevel: 5,  cost: { aether_stone: 80, iron: 60 },     timeSeconds: 180, requires: 'aether_extractor', effects: 'Unlock aether abilities' },
 };
@@ -91,7 +91,7 @@ export async function researchRoutes(app: FastifyInstance) {
     // Calculate cost (base cost * nextLevel)
     const totalCost: Record<string, number> = {};
     for (const [res, amount] of Object.entries(config.cost)) {
-      totalCost[res] = amount * nextLevel;
+      totalCost[res] = Math.floor(amount * Math.pow(1.22, nextLevel - 1));
     }
 
     // Validate resources
@@ -106,7 +106,7 @@ export async function researchRoutes(app: FastifyInstance) {
       settlement.resources[res] -= amount;
     }
 
-    const researchTime = config.timeSeconds * nextLevel;
+    const researchTime = Math.floor(config.timeSeconds * (1 + (nextLevel - 1) * 0.7 + Math.pow(nextLevel - 1, 1.3) * 0.1));
     const now = Date.now();
     settlement.researchQueue = {
       type,

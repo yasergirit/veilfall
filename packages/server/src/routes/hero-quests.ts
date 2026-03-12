@@ -19,7 +19,7 @@ export const QUEST_DEFINITIONS: Record<
   exploration: {
     name: 'Exploration',
     description: 'Send your hero to explore the surrounding lands. A quick, low-risk venture that yields modest XP and resources.',
-    duration: 60,
+    duration: 90,
     difficulty: 1,
     rewards: {
       xpMin: 30,
@@ -33,7 +33,7 @@ export const QUEST_DEFINITIONS: Record<
   training: {
     name: 'Training',
     description: 'Your hero undergoes rigorous combat training. Medium risk with solid XP gains and a chance to improve stats.',
-    duration: 90,
+    duration: 120,
     difficulty: 2,
     rewards: {
       xpMin: 60,
@@ -46,7 +46,7 @@ export const QUEST_DEFINITIONS: Record<
   relic_hunt: {
     name: 'Relic Hunt',
     description: 'Venture into ancient ruins seeking powerful relics. Dangerous, but successful heroes may return with legendary equipment.',
-    duration: 120,
+    duration: 180,
     difficulty: 3,
     rewards: {
       xpMin: 100,
@@ -61,7 +61,7 @@ export const QUEST_DEFINITIONS: Record<
   veil_expedition: {
     name: 'Veil Expedition',
     description: 'Plunge deep into the Veil itself. The most perilous journey, but those who return carry aether stones and fragments of forgotten lore.',
-    duration: 180,
+    duration: 300,
     difficulty: 3,
     rewards: {
       xpMin: 150,

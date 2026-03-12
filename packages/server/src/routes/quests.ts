@@ -359,7 +359,7 @@ function generateDailyQuests(playerId: string): QuestDefinition[] {
     const target = template.targets[Math.floor(rng() * template.targets.length)];
 
     // Scale amount based on TC level (higher TC = harder daily quests = better rewards)
-    const scaleFactor = 1 + (tcLevel - 1) * 0.4;
+    const scaleFactor = 1 + (tcLevel - 1) * 0.3;
     const baseAmount = template.amountRange[0] + Math.floor(rng() * (template.amountRange[1] - template.amountRange[0]));
     const amount = Math.round(baseAmount * scaleFactor);
 

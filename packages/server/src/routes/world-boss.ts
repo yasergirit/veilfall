@@ -8,12 +8,12 @@ import { z } from 'zod';
 // Unit stats (mirrored from combat.ts for damage calculation)
 // ---------------------------------------------------------------------------
 
-const UNIT_STATS: Record<string, { attack: number; defense: number }> = {
-  militia:      { attack: 10, defense: 15 },
-  archer:       { attack: 18, defense: 8 },
-  shieldbearer: { attack: 8,  defense: 25 },
-  scout:        { attack: 3,  defense: 3 },
-  siege_ram:    { attack: 40, defense: 5 },
+const UNIT_STATS: Record<string, { attack: number; defense: number; speed: number; hp: number }> = {
+  militia:      { attack: 10, defense: 15, speed: 8, hp: 40 },
+  archer:       { attack: 18, defense: 8,  speed: 9, hp: 30 },
+  shieldbearer: { attack: 8,  defense: 25, speed: 6, hp: 55 },
+  scout:        { attack: 3,  defense: 3,  speed: 18, hp: 15 },
+  siege_ram:    { attack: 40, defense: 5,  speed: 3, hp: 60 },
 };
 
 // ---------------------------------------------------------------------------
@@ -33,28 +33,28 @@ export const WORLD_BOSS_TEMPLATES: Record<string, {
     name: 'Veil Titan',
     title: 'Guardian of the Rift',
     type: 'veil_titan',
-    health: 5000,
-    attack: 200,
-    defense: 100,
-    rewards: { food: 5000, wood: 5000, stone: 3000, iron: 2000, aether_stone: 1000 },
+    health: 8000,
+    attack: 180,
+    defense: 120,
+    rewards: { food: 4000, wood: 4000, stone: 2500, iron: 1500, aether_stone: 800 },
   },
   aether_wyrm: {
     name: 'Aether Wyrm',
     title: 'Devourer of Leylines',
     type: 'aether_wyrm',
-    health: 3000,
-    attack: 350,
+    health: 5000,
+    attack: 300,
     defense: 80,
-    rewards: { aether_stone: 3000, food: 2000, wood: 2000 },
+    rewards: { aether_stone: 2500, food: 1500, wood: 1500 },
   },
   shadow_colossus: {
     name: 'Shadow Colossus',
     title: 'The Unbound',
     type: 'shadow_colossus',
-    health: 2000,
-    attack: 500,
-    defense: 200,
-    rewards: { iron: 5000, stone: 5000, aether_stone: 500 },
+    health: 3500,
+    attack: 400,
+    defense: 180,
+    rewards: { iron: 4000, stone: 4000, aether_stone: 400 },
   },
 };
 
@@ -192,9 +192,30 @@ export async function worldBossRoutes(app: FastifyInstance) {
     const unitsLost: Record<string, number> = {};
     const survivingUnits: Record<string, number> = {};
 
+    const damageToArmy = Math.floor(boss.attack * bossAttackRatio * 0.35);
+    // Distribute damage by inverse speed (slower units absorb more)
+    let totalWeight = 0;
+    const weights: Record<string, number> = {};
     for (const [unitType, count] of Object.entries(body.units)) {
-      const lost = Math.floor(bossAttackRatio * 0.4 * count);
-      unitsLost[unitType] = lost;
+      const stats = UNIT_STATS[unitType];
+      if (stats) {
+        const w = count * (20 - stats.speed);
+        weights[unitType] = w;
+        totalWeight += w;
+      }
+    }
+    for (const [unitType, count] of Object.entries(body.units)) {
+      const stats = UNIT_STATS[unitType];
+      if (stats && totalWeight > 0) {
+        const share = (weights[unitType] ?? 0) / totalWeight;
+        const dmg = damageToArmy * share;
+        const lost = Math.floor(dmg / stats.hp);
+        unitsLost[unitType] = Math.min(lost, count);
+      }
+    }
+
+    for (const [unitType, count] of Object.entries(body.units)) {
+      const lost = unitsLost[unitType] ?? 0;
       const surviving = count - lost;
       if (surviving > 0) {
         survivingUnits[unitType] = surviving;

@@ -3,12 +3,13 @@ import { requireAuth } from '../middleware/auth.js';
 import { mockDb } from '../db/mock-db.js';
 import { z } from 'zod';
 import { UNIT_CONFIGS } from './units.js';
+import { MAX_ARMY_SIZE_PER_MARCH } from '@veilfall/shared';
 
 const sendMarchSchema = z.object({
   units: z.record(z.string(), z.number().int().min(1)),
   toQ: z.number().int(),
   toR: z.number().int(),
-  type: z.enum(['attack', 'scout', 'reinforce']),
+  type: z.enum(['attack', 'scout', 'reinforce', 'raid']),
   heroId: z.string().optional(),
 });
 
@@ -51,6 +52,12 @@ export async function marchRoutes(app: FastifyInstance) {
       }
     }
 
+    // Validate army size cap
+    const totalUnits = Object.values(units).reduce((sum, n) => sum + n, 0);
+    if (totalUnits > MAX_ARMY_SIZE_PER_MARCH) {
+      return reply.status(400).send({ error: `Army size exceeds maximum of ${MAX_ARMY_SIZE_PER_MARCH} units per march` });
+    }
+
     // Validate hero attachment
     if (heroId) {
       const hero = mockDb.getHero(heroId);
@@ -81,6 +88,12 @@ export async function marchRoutes(app: FastifyInstance) {
     }
     // 30 seconds per tile, adjusted inversely by speed (slower units = more time is default)
     const travelTimeMs = distance * 30 * 1000;
+    // Enforce minimum travel time of 15 seconds
+    let finalTravelTimeMs = Math.max(travelTimeMs, 15_000);
+    // Raids move 1.3x faster
+    if (type === 'raid') {
+      finalTravelTimeMs = Math.round(finalTravelTimeMs / 1.3);
+    }
 
     const now = Date.now();
     const march = mockDb.createMarch({
@@ -94,7 +107,7 @@ export async function marchRoutes(app: FastifyInstance) {
       toR,
       type,
       startedAt: now,
-      arrivedAt: now + travelTimeMs,
+      arrivedAt: now + finalTravelTimeMs,
       status: 'marching',
       heroId,
     });

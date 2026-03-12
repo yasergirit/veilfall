@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireAuth } from '../middleware/auth.js';
 import { mockDb } from '../db/mock-db.js';
 import { z } from 'zod';
+import { MAX_TRADE_OFFERS_PER_PLAYER, MAX_TRADE_RATIO, RESOURCE_BASE_VALUES } from '@veilfall/shared';
 
 const createOfferSchema = z.object({
   settlementId: z.string().uuid(),
@@ -35,6 +36,19 @@ export async function marketplaceRoutes(app: FastifyInstance) {
     // Cannot trade same resource for itself
     if (body.offerResource === body.requestResource) {
       return reply.status(400).send({ error: 'Cannot trade a resource for itself' });
+    }
+
+    // Check player's open offers count
+    const openOffers = mockDb.getOpenTradeOffers().filter(o => o.sellerId === player.id);
+    if (openOffers.length >= MAX_TRADE_OFFERS_PER_PLAYER) {
+      return reply.status(400).send({ error: 'Max 5 active offers' });
+    }
+
+    // Check trade ratio
+    const offerValue = body.offerAmount * (RESOURCE_BASE_VALUES[body.offerResource] ?? 1);
+    const requestValue = body.requestAmount * (RESOURCE_BASE_VALUES[body.requestResource] ?? 1);
+    if (requestValue / offerValue > MAX_TRADE_RATIO || offerValue / requestValue > MAX_TRADE_RATIO) {
+      return reply.status(400).send({ error: 'Trade ratio exceeds 10:1 limit' });
     }
 
     // Check sufficient resources for escrow

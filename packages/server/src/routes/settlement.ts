@@ -41,9 +41,9 @@ const FACTION_BUILDINGS: Record<string, string> = {
 
 const TC_UPGRADE_COSTS: Record<number, { cost: Record<string, number>; timeSeconds: number }> = {
   2: { cost: { food: 200, wood: 300, stone: 200 }, timeSeconds: 120 },
-  3: { cost: { food: 500, wood: 600, stone: 400, iron: 200 }, timeSeconds: 300 },
-  4: { cost: { food: 1000, wood: 1200, stone: 800, iron: 400, aether_stone: 100 }, timeSeconds: 600 },
-  5: { cost: { food: 2000, wood: 2400, stone: 1600, iron: 800, aether_stone: 300 }, timeSeconds: 1200 },
+  3: { cost: { food: 500, wood: 600, stone: 400, iron: 200 }, timeSeconds: 360 },
+  4: { cost: { food: 1200, wood: 1400, stone: 900, iron: 500, aether_stone: 100 }, timeSeconds: 900 },
+  5: { cost: { food: 3000, wood: 3500, stone: 2200, iron: 1200, aether_stone: 400 }, timeSeconds: 2400 },
 };
 
 const buildSchema = z.object({ buildingType: z.string() });
@@ -54,7 +54,7 @@ const foundSchema = z.object({
   r: z.number().int(),
 });
 
-const FOUNDING_COST: Record<string, number> = { food: 1000, wood: 1000, stone: 500, iron: 300 };
+const FOUNDING_COST: Record<string, number> = { food: 1500, wood: 1500, stone: 800, iron: 500 };
 
 const MAX_BUILDING_LEVEL = 20;
 
@@ -163,7 +163,7 @@ export async function settlementRoutes(app: FastifyInstance) {
 
     const upgradeCost: Record<string, number> = {};
     for (const [res, amount] of Object.entries(config.cost)) {
-      upgradeCost[res] = amount * nextLevel;
+      upgradeCost[res] = Math.floor(amount * Math.pow(1.18, nextLevel - 1));
     }
 
     for (const [res, amount] of Object.entries(upgradeCost)) {
@@ -176,7 +176,7 @@ export async function settlementRoutes(app: FastifyInstance) {
       settlement.resources[res] -= amount;
     }
 
-    const upgradeTime = config.timeSeconds * nextLevel * 0.8;
+    const upgradeTime = Math.floor(config.timeSeconds * (1 + (nextLevel - 1) * 0.6 + Math.pow(nextLevel - 1, 1.4) * 0.08));
     const now = Date.now();
     settlement.buildQueue.push({ type: buildingType, targetLevel: nextLevel, startedAt: now, endsAt: now + upgradeTime * 1000 });
     mockDb.updateSettlement(settlementId, { resources: settlement.resources, buildQueue: settlement.buildQueue });
