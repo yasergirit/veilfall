@@ -404,6 +404,7 @@ function formatTime(seconds: number): string {
 export default function HexMap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mouseDownPos, setMouseDownPos] = useState({ x: 0, y: 0 });
@@ -508,7 +509,8 @@ export default function HexMap() {
     ctx.fillStyle = '#0a0e1a';
     ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-    const scale = HEX_SIZE / 128;
+    const hexSize = HEX_SIZE * zoom;
+    const scale = hexSize / 128;
     const imgW = TILE_W * scale; // = 2 * HEX_SIZE = 84
     const imgH = TILE_H * scale; // = 3 * HEX_SIZE = 126 (isometric depth)
     const faceOffY = imgH * FACE_CENTER_Y; // hex face center offset from image top
@@ -520,12 +522,12 @@ export default function HexMap() {
     });
 
     for (const tile of sortedTiles) {
-      const { x, y } = hexToPixel(tile, HEX_SIZE);
+      const { x, y } = hexToPixel(tile, hexSize);
       const px = centerX + x;
       const py = centerY + y;
 
-      if (px < -HEX_SIZE * 2 || px > canvas.clientWidth + HEX_SIZE * 2) continue;
-      if (py < -HEX_SIZE * 2 || py > canvas.clientHeight + HEX_SIZE * 2) continue;
+      if (px < -hexSize * 2 || px > canvas.clientWidth + hexSize * 2) continue;
+      if (py < -hexSize * 2 || py > canvas.clientHeight + hexSize * 2) continue;
 
       const key = hexKey(tile);
       const isSelected = selectedTile && hexKey(selectedTile) === key;
@@ -544,12 +546,12 @@ export default function HexMap() {
 
         // Draw highlight/selection outline on top of tile image
         if (state === 'selected' || state === 'hovered') {
-          drawHexOutline(ctx, px, py, HEX_SIZE - 1, state);
+          drawHexOutline(ctx, px, py, hexSize - 1, state);
         }
       } else {
         // Fallback: flat colored hex
         const color = TERRAIN_COLORS[tile.terrain] || '#2a2a2a';
-        drawHex(ctx, px, py, HEX_SIZE - 1, color, state);
+        drawHex(ctx, px, py, hexSize - 1, color, state);
       }
 
       // Determine if tile is visible (fog of war)
@@ -575,7 +577,7 @@ export default function HexMap() {
         ctx.font = 'bold 10px Inter';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(activeSettlement?.name ?? 'Home', px, py + HEX_SIZE * 0.55);
+        ctx.fillText(activeSettlement?.name ?? 'Home', px, py + hexSize * 0.55);
       }
 
       // Only render tile details if the tile is visible
@@ -631,8 +633,8 @@ export default function HexMap() {
 
     // Draw active marches
     for (const march of activeMarches) {
-      const fromPixel = hexToPixel(hex(march.fromQ, march.fromR), HEX_SIZE);
-      const toPixel = hexToPixel(hex(march.toQ, march.toR), HEX_SIZE);
+      const fromPixel = hexToPixel(hex(march.fromQ, march.fromR), hexSize);
+      const toPixel = hexToPixel(hex(march.toQ, march.toR), hexSize);
       const fromPx = centerX + fromPixel.x;
       const fromPy = centerY + fromPixel.y;
       const toPx = centerX + toPixel.x;
@@ -682,12 +684,12 @@ export default function HexMap() {
         const tileKey = `${tile.q},${tile.r}`;
         if (visibleTiles.has(tileKey)) continue;
 
-        const { x, y } = hexToPixel(tile, HEX_SIZE);
+        const { x, y } = hexToPixel(tile, hexSize);
         const px = centerX + x;
         const py = centerY + y;
 
-        if (px < -HEX_SIZE * 2 || px > canvas.clientWidth + HEX_SIZE * 2) continue;
-        if (py < -HEX_SIZE * 2 || py > canvas.clientHeight + HEX_SIZE * 2) continue;
+        if (px < -hexSize * 2 || px > canvas.clientWidth + hexSize * 2) continue;
+        if (py < -hexSize * 2 || py > canvas.clientHeight + hexSize * 2) continue;
 
         // Check if this fogged tile borders a visible tile (for gradient edge)
         let isBoundary = false;
@@ -703,22 +705,22 @@ export default function HexMap() {
 
         // Draw fog hex clipped to flat-top hex shape
         ctx.save();
-        drawHexPath(ctx, px, py, HEX_SIZE);
+        drawHexPath(ctx, px, py, hexSize);
         ctx.clip();
 
         if (isBoundary) {
-          const grad = ctx.createRadialGradient(px, py, 0, px, py, HEX_SIZE);
+          const grad = ctx.createRadialGradient(px, py, 0, px, py, hexSize);
           grad.addColorStop(0, 'rgba(10, 15, 30, 0.35)');
           grad.addColorStop(1, 'rgba(10, 15, 30, 0.65)');
           ctx.fillStyle = grad;
         } else {
           ctx.fillStyle = 'rgba(10, 15, 30, 0.75)';
         }
-        ctx.fillRect(px - HEX_SIZE, py - HEX_SIZE, HEX_SIZE * 2, HEX_SIZE * 2);
+        ctx.fillRect(px - hexSize, py - hexSize, hexSize * 2, hexSize * 2);
         ctx.restore();
       }
     }
-  }, [offset, hoveredHex, selectedTile, getCanvasCenter, sq, sr, activeSettlement?.name, activeMarches, mapEvents, visibleTiles, imagesReady]);
+  }, [offset, zoom, hoveredHex, selectedTile, getCanvasCenter, sq, sr, activeSettlement?.name, activeMarches, mapEvents, visibleTiles, imagesReady]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -735,7 +737,7 @@ export default function HexMap() {
     const { x: centerX, y: centerY } = getCanvasCenter();
     const mx = clientX - rect.left - centerX;
     const my = clientY - rect.top - centerY;
-    const coord = pixelToHex(mx, my, HEX_SIZE);
+    const coord = pixelToHex(mx, my, HEX_SIZE * zoom);
     return tilesRef.current.find((t) => t.q === coord.q && t.r === coord.r);
   };
 
@@ -772,6 +774,12 @@ export default function HexMap() {
     }
     setDragging(false);
   };
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((prev) => Math.min(3, Math.max(0.3, prev + delta)));
+  }, []);
 
   const handleSendMarch = async () => {
     if (!activeSettlement || !selectedTile || sending) return;
@@ -871,6 +879,7 @@ export default function HexMap() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => { setDragging(false); setHoveredHex(null); }}
+        onWheel={handleWheel}
       />
 
       {/* Tile Info Panel */}
