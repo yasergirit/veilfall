@@ -272,6 +272,8 @@ class MockDatabase {
 
   heroQuests: Map<string, MockHeroQuest> = new Map();
 
+  passwordResetTokens: Map<string, { playerId: string; email: string; token: string; expiresAt: number }> = new Map();
+
   // Index helpers
   playersByEmail: Map<string, string> = new Map();
   playersByUsername: Map<string, string> = new Map();
@@ -767,6 +769,45 @@ class MockDatabase {
     const updated = { ...existing, ...update };
     this.heroQuests.set(id, updated);
     return updated;
+  }
+
+  // ── Password Reset Token CRUD ──
+
+  createPasswordResetToken(playerId: string, email: string): string {
+    // Remove any existing token for this email
+    for (const [key, val] of this.passwordResetTokens) {
+      if (val.email === email) this.passwordResetTokens.delete(key);
+    }
+    const token = crypto.randomUUID();
+    this.passwordResetTokens.set(token, {
+      playerId,
+      email,
+      token,
+      expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+    return token;
+  }
+
+  getPasswordResetToken(token: string) {
+    const entry = this.passwordResetTokens.get(token);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiresAt) {
+      this.passwordResetTokens.delete(token);
+      return undefined;
+    }
+    return entry;
+  }
+
+  deletePasswordResetToken(token: string) {
+    this.passwordResetTokens.delete(token);
+  }
+
+  updatePlayerPassword(playerId: string, newPasswordHash: string): boolean {
+    const player = this.players.get(playerId);
+    if (!player) return false;
+    player.passwordHash = newPasswordHash;
+    this.players.set(playerId, player);
+    return true;
   }
 }
 

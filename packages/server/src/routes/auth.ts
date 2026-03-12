@@ -39,6 +39,15 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().uuid(),
+  password: z.string().min(8).max(128),
+});
+
 export async function authRoutes(app: FastifyInstance) {
   app.post('/register', async (request, reply) => {
     const body = registerSchema.parse(request.body);
@@ -135,5 +144,82 @@ export async function authRoutes(app: FastifyInstance) {
       token,
       refreshToken,
     });
+  });
+
+  app.post('/forgot-password', async (request, reply) => {
+    const body = forgotPasswordSchema.parse(request.body);
+    const player = mockDb.getPlayerByEmail(body.email);
+
+    // Always return success to prevent email enumeration
+    if (!player) {
+      return reply.send({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    const resetToken = mockDb.createPasswordResetToken(player.id, body.email);
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetLink = `${clientUrl}/reset-password?token=${resetToken}`;
+
+    // Send email via Resend (free tier: 3000/month)
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
+      try {
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM_EMAIL || 'Veilfall <onboarding@resend.dev>',
+            to: [body.email],
+            subject: 'Veilfall - Password Reset',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0a0e1a; color: #e8dcc4; padding: 32px; border-radius: 8px;">
+                <h1 style="text-align: center; letter-spacing: 4px; color: #c4a0ff;">VEILFALL</h1>
+                <p style="text-align: center; color: #8a8a9a; font-size: 13px;">Echoes of the Sky Rupture</p>
+                <hr style="border: 1px solid #2a3a5a; margin: 24px 0;" />
+                <p>Commander <strong>${player.username}</strong>,</p>
+                <p>A password reset was requested for your account. Click the button below to set a new password:</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${resetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password</a>
+                </div>
+                <p style="font-size: 13px; color: #8a8a9a;">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
+              </div>
+            `,
+          }),
+        });
+        if (!emailRes.ok) {
+          const errBody = await emailRes.text();
+          app.log.error(`[RESEND ERROR] ${errBody}`);
+        }
+      } catch (err) {
+        app.log.error(`[RESEND ERROR] ${err}`);
+      }
+    } else {
+      app.log.info(`[PASSWORD RESET] No RESEND_API_KEY set. Link for ${body.email}: ${resetLink}`);
+    }
+
+    reply.send({ message: 'If that email exists, a reset link has been sent.' });
+  });
+
+  app.post('/reset-password', async (request, reply) => {
+    const body = resetPasswordSchema.parse(request.body);
+
+    const tokenEntry = mockDb.getPasswordResetToken(body.token);
+    if (!tokenEntry) {
+      return reply.status(400).send({ error: 'Invalid or expired reset token' });
+    }
+
+    const hashedPassword = await bcrypt.hash(body.password, 12);
+    const updated = mockDb.updatePlayerPassword(tokenEntry.playerId, hashedPassword);
+
+    if (!updated) {
+      return reply.status(404).send({ error: 'Player not found' });
+    }
+
+    mockDb.deletePasswordResetToken(body.token);
+
+    reply.send({ message: 'Password has been reset successfully' });
   });
 }
