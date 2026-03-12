@@ -145,6 +145,5 @@ export async function initWebSocket(app: FastifyInstance) {
     io.emit('online:count', count);
   }, 30_000);
 
-  app.decorate('io', io);
   return io;
 }
