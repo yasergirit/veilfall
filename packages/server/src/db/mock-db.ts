@@ -6,12 +6,15 @@
 import type { Faction } from '@veilfall/shared';
 import { STARTING_RESOURCES } from '@veilfall/shared';
 
+export type PlayerRole = 'player' | 'tester' | 'admin';
+
 export interface MockPlayer {
   id: string;
   username: string;
   email: string;
   passwordHash: string;
   faction: Faction;
+  role: PlayerRole;
   allianceId?: string;
   createdAt: Date;
 }

@@ -6,7 +6,7 @@ import { STARTING_RESOURCES } from '@veilfall/shared';
 import NotificationBell from './NotificationBell.js';
 import { api } from '../lib/api.js';
 
-const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
+// Debug: +1k resource buttons visible to tester/admin roles
 
 const RESOURCE_ORDER = ['food', 'wood', 'stone', 'iron', 'aether_stone'] as const;
 
@@ -93,7 +93,7 @@ export default function ResourceBar() {
   const setActiveSettlement = useGameStore((s) => s.setActiveSettlement);
   const setActivePanel = useGameStore((s) => s.setActivePanel);
   const setSettlements = useGameStore((s) => s.setSettlements);
-  const isTester = TESTER_EMAILS.includes(player?.email ?? '');
+  const isTester = player?.role === 'tester' || player?.role === 'admin';
 
   const handleAddResource = useCallback(async (resource: string) => {
     if (!activeSettlementId) return;

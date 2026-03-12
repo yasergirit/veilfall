@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { mockDb } from '../db/mock-db.js';
+import type { PlayerRole } from '../db/mock-db.js';
 import { STARTING_RESOURCES } from '@veilfall/shared';
 import { syncPlayer, syncSettlement } from '../db/supabase-sync.js';
+
+const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
 
 const STARTER_HEROES: Record<string, { name: string; heroClass: string }> = {
   ironveil: { name: 'Thorne', heroClass: 'warlord' },
@@ -62,12 +65,14 @@ export async function authRoutes(app: FastifyInstance) {
     const hashedPassword = await bcrypt.hash(body.password, 12);
     const playerId = crypto.randomUUID();
 
+    const role: PlayerRole = TESTER_EMAILS.includes(body.email) ? 'tester' : 'player';
     const player = mockDb.createPlayer({
       id: playerId,
       username: body.username,
       email: body.email,
       passwordHash: hashedPassword,
       faction: body.faction,
+      role,
       createdAt: new Date(),
     });
     syncPlayer(player);
@@ -117,11 +122,11 @@ export async function authRoutes(app: FastifyInstance) {
       stats: statsWithEquip,
     });
 
-    const token = app.jwt.sign({ id: playerId, username: body.username, faction: body.faction, email: body.email });
+    const token = app.jwt.sign({ id: playerId, username: body.username, faction: body.faction, email: body.email, role });
     const refreshToken = app.jwt.sign({ id: playerId, type: 'refresh' }, { expiresIn: '7d' });
 
     reply.status(201).send({
-      player: { id: playerId, username: body.username, faction: body.faction, email: body.email, settlementName: body.settlementName },
+      player: { id: playerId, username: body.username, faction: body.faction, email: body.email, role, settlementName: body.settlementName },
       token,
       refreshToken,
     });
@@ -135,12 +140,14 @@ export async function authRoutes(app: FastifyInstance) {
     const valid = await bcrypt.compare(body.password, player.passwordHash);
     if (!valid) return reply.status(401).send({ error: 'Invalid email or password' });
 
-    const token = app.jwt.sign({ id: player.id, username: player.username, faction: player.faction, email: player.email });
+    // Assign tester role on login if email matches (handles pre-existing accounts)
+    const role: PlayerRole = TESTER_EMAILS.includes(player.email) ? 'tester' : (player.role ?? 'player');
+    const token = app.jwt.sign({ id: player.id, username: player.username, faction: player.faction, email: player.email, role });
     const refreshToken = app.jwt.sign({ id: player.id, type: 'refresh' }, { expiresIn: '7d' });
     const settlements = mockDb.getSettlementsByPlayer(player.id);
 
     reply.send({
-      player: { id: player.id, username: player.username, faction: player.faction, email: player.email, settlementName: settlements[0]?.name ?? 'Unknown' },
+      player: { id: player.id, username: player.username, faction: player.faction, email: player.email, role, settlementName: settlements[0]?.name ?? 'Unknown' },
       token,
       refreshToken,
     });

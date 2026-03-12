@@ -7,6 +7,7 @@ interface Player {
   username: string;
   faction: Faction;
   email?: string;
+  role?: string;
 }
 
 interface AuthState {
