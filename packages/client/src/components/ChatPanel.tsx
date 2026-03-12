@@ -220,10 +220,10 @@ export default function ChatPanel() {
       {/* Collapsed Bar / Header */}
       <button
         onClick={handleToggle}
-        className="flex items-center justify-between px-3 h-8 shrink-0 border border-b-0 border-[var(--ruin-grey)]/30 text-sm transition-colors hover:border-[var(--aether-violet)]/40"
+        className="flex items-center justify-between px-3 h-8 shrink-0 text-sm transition-all hover:brightness-110"
         style={{
-          background: 'url(/assets/gui/panels/body_base.png) center/cover, rgba(26, 39, 68, 0.95)',
-          borderRadius: expanded ? '0' : '8px 8px 0 0',
+          background: 'url(/assets/gui/chat/channel_active.png) center/100% 100% no-repeat',
+          border: 'none',
         }}
       >
         <span className="text-[var(--parchment-dim)] text-xs flex items-center gap-1.5" style={{ fontFamily: 'Cinzel, serif' }}>
@@ -243,9 +243,12 @@ export default function ChatPanel() {
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
-          <span className="text-[var(--ruin-grey)] text-xs">
-            {expanded ? '\u25BC' : '\u25B2'}
-          </span>
+          <img
+            src="/assets/gui/chat/expander.png"
+            alt=""
+            className="w-3.5 h-3.5 opacity-70 transition-transform"
+            style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
         </div>
       </button>
 
@@ -260,20 +263,32 @@ export default function ChatPanel() {
           }}
         >
           {/* Channel Tabs */}
-          <div className="flex border-b border-[var(--ruin-grey)]/20 shrink-0">
-            {channels.map((ch) => (
-              <button
-                key={`${ch.type}-${ch.id}`}
-                onClick={() => setActiveChannel(ch)}
-                className={`flex-1 px-2 py-1.5 text-[11px] transition-colors ${
-                  activeChannel.type === ch.type && activeChannel.id === ch.id
-                    ? 'text-[var(--ember-gold)] border-b-2 border-[var(--ember-gold)]'
-                    : 'text-[var(--ruin-grey)] hover:text-[var(--parchment-dim)]'
-                }`}
-              >
-                {ch.label}
-              </button>
-            ))}
+          <div className="flex shrink-0">
+            {channels.map((ch) => {
+              const isActiveTab = activeChannel.type === ch.type && activeChannel.id === ch.id;
+              return (
+                <button
+                  key={`${ch.type}-${ch.id}`}
+                  onClick={() => setActiveChannel(ch)}
+                  className={`flex-1 py-1.5 text-[11px] border-none cursor-pointer transition-all ${
+                    isActiveTab
+                      ? 'text-[var(--ember-gold)]'
+                      : 'text-[var(--ruin-grey)] hover:text-[var(--parchment-dim)]'
+                  }`}
+                  style={{
+                    background: `url(/assets/gui/chat/${isActiveTab ? 'channel_active' : 'channel_passive'}.png) center/100% 100% no-repeat`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActiveTab) e.currentTarget.style.backgroundImage = 'url(/assets/gui/chat/channel_hovered.png)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActiveTab) e.currentTarget.style.backgroundImage = 'url(/assets/gui/chat/channel_passive.png)';
+                  }}
+                >
+                  {ch.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Messages */}
@@ -303,14 +318,19 @@ export default function ChatPanel() {
           </div>
 
           {/* Input */}
-          <div className="flex items-center gap-1 p-2 border-t border-[var(--ruin-grey)]/20 shrink-0">
+          <div
+            className="flex items-center gap-1 px-2 py-1 shrink-0"
+            style={{
+              background: 'url(/assets/gui/chat/type_box.png) center/100% 100% no-repeat',
+            }}
+          >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               maxLength={300}
-              className="flex-1 px-2 py-1.5 rounded bg-[var(--veil-blue-deep)] border border-[var(--ruin-grey)]/25 text-[var(--parchment)] text-xs focus:outline-none focus:border-[var(--aether-violet)]/50"
+              className="flex-1 px-2 py-1.5 bg-transparent border-none text-[var(--parchment)] text-xs focus:outline-none"
               placeholder="Type a message..."
             />
             <button
@@ -318,9 +338,10 @@ export default function ChatPanel() {
               disabled={sending || !input.trim()}
               className={`px-2.5 py-1.5 rounded text-xs transition-colors ${
                 input.trim() && !sending
-                  ? 'bg-[var(--aether-violet)]/25 border border-[var(--aether-violet)]/40 text-[var(--parchment)] hover:bg-[var(--aether-violet)]/45'
-                  : 'bg-[var(--ruin-grey)]/15 border border-[var(--ruin-grey)]/20 text-[var(--ruin-grey)] cursor-not-allowed'
+                  ? 'text-[var(--ember-gold)] hover:text-[var(--parchment)]'
+                  : 'text-[var(--ruin-grey)] cursor-not-allowed'
               }`}
+              style={{ background: 'none', border: 'none' }}
             >
               Send
             </button>
