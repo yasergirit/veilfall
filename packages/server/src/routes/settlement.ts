@@ -48,6 +48,12 @@ const TC_UPGRADE_COSTS: Record<number, { cost: Record<string, number>; timeSecon
 
 const buildSchema = z.object({ buildingType: z.string() });
 const upgradeSchema = z.object({ buildingType: z.string() });
+const rushSchema = z.object({ buildingType: z.string() });
+
+// Rush cost: 1 aether_stone per 10 seconds remaining (minimum 1)
+function computeRushCost(remainingMs: number): number {
+  return Math.max(1, Math.ceil(remainingMs / 1000 / 10));
+}
 const foundSchema = z.object({
   name: z.string().min(2).max(30),
   q: z.number().int(),
@@ -182,6 +188,64 @@ export async function settlementRoutes(app: FastifyInstance) {
     mockDb.updateSettlement(settlementId, { resources: settlement.resources, buildQueue: settlement.buildQueue });
 
     return { message: `Upgrading ${buildingType} to level ${nextLevel}`, endsAt: now + upgradeTime * 1000, resources: settlement.resources, buildQueue: settlement.buildQueue };
+  });
+
+  // Rush (speed-up) a building in the queue — costs aether_stone scaled by remaining time
+  app.post('/:settlementId/rush', { preHandler: requireAuth }, async (request, reply) => {
+    const player = request.user;
+    const { settlementId } = request.params as { settlementId: string };
+    const { buildingType } = rushSchema.parse(request.body);
+
+    const settlement = mockDb.getSettlement(settlementId);
+    if (!settlement || settlement.playerId !== player.id) {
+      return reply.status(404).send({ error: 'Settlement not found' });
+    }
+
+    const queueIdx = settlement.buildQueue.findIndex((q: any) => q.type === buildingType);
+    if (queueIdx === -1) {
+      return reply.status(400).send({ error: 'Building not in queue' });
+    }
+
+    const queueItem = settlement.buildQueue[queueIdx];
+    const now = Date.now();
+    const remainingMs = Math.max(0, queueItem.endsAt - now);
+
+    if (remainingMs <= 0) {
+      return reply.status(400).send({ error: 'Build already complete' });
+    }
+
+    const aetherCost = computeRushCost(remainingMs);
+    const currentAether = settlement.resources.aether_stone ?? 0;
+
+    if (currentAether < aetherCost) {
+      return reply.status(400).send({ error: `Not enough Aether Stone. Need ${aetherCost}, have ${currentAether}` });
+    }
+
+    // Deduct aether and complete the build instantly
+    settlement.resources.aether_stone = currentAether - aetherCost;
+    queueItem.endsAt = now; // Mark as complete
+
+    // Process completed queue item immediately
+    const existing = settlement.buildings.find((b: any) => b.type === buildingType);
+    if (existing) {
+      existing.level = queueItem.targetLevel;
+    } else {
+      settlement.buildings.push({ type: buildingType, level: queueItem.targetLevel, position: settlement.buildings.length });
+    }
+    settlement.buildQueue.splice(queueIdx, 1);
+
+    mockDb.updateSettlement(settlementId, {
+      resources: settlement.resources,
+      buildings: settlement.buildings,
+      buildQueue: settlement.buildQueue,
+    });
+
+    return {
+      message: `Rushed ${buildingType} to level ${queueItem.targetLevel}!`,
+      resources: settlement.resources,
+      buildings: settlement.buildings,
+      buildQueue: settlement.buildQueue,
+    };
   });
 
   // Found a new settlement

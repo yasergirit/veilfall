@@ -51,6 +51,12 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ buildingType }) },
     ),
 
+  rushBuilding: (settlementId: string, buildingType: string) =>
+    request<{ message: string; resources: any; buildings: any[]; buildQueue: any[] }>(
+      `/settlements/${settlementId}/rush`,
+      { method: 'POST', body: JSON.stringify({ buildingType }) },
+    ),
+
   // Units
   getUnitConfigs: () => request<{ configs: any }>('/units/configs'),
 

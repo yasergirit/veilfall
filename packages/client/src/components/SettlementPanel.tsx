@@ -209,6 +209,24 @@ export default function SettlementPanel() {
     }
   };
 
+  const handleRush = async (buildingType: string) => {
+    if (!activeSettlement || actionInProgress) return;
+    setActionInProgress(true);
+    setMessage(null);
+    try {
+      const result = await api.rushBuilding(activeSettlement.id, buildingType);
+      setMessage({ text: result.message, type: 'success' });
+      addToast({ message: result.message, type: 'success' });
+      await refreshSettlements();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Rush failed';
+      setMessage({ text: msg, type: 'error' });
+      addToast({ message: msg, type: 'error' });
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   const hasBarracks = activeSettlement?.buildings.some((b) => b.type === 'militia_barracks');
   const queueFull = (activeSettlement?.buildQueue?.length ?? 0) >= 2;
 
@@ -256,20 +274,6 @@ export default function SettlementPanel() {
               : 'bg-red-900/30 border border-red-700/50 text-red-300'
           }`}>
             {message.text}
-          </div>
-        )}
-
-        {/* Build Queue */}
-        {activeSettlement && activeSettlement.buildQueue.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-[var(--ember-gold)] mb-2">
-              Construction Queue ({activeSettlement.buildQueue.length}/2)
-            </h3>
-            <div className="space-y-2">
-              {activeSettlement.buildQueue.map((item, idx) => (
-                <BuildQueueItem key={`${item.type}-${idx}`} item={item} />
-              ))}
-            </div>
           </div>
         )}
 
@@ -485,10 +489,6 @@ export default function SettlementPanel() {
                           </span>
                         )}
 
-                        {isQueued && (
-                          <span className="text-[10px] text-[var(--ember-gold)] animate-pulse">In Queue</span>
-                        )}
-
                         {/* Expand chevron */}
                         <span
                           className="text-[var(--ruin-grey)] text-xs transition-transform duration-200"
@@ -498,6 +498,16 @@ export default function SettlementPanel() {
                         </span>
                       </div>
                     </div>
+
+                    {/* In-card progress bar when queued */}
+                    {isQueued && inQueue && (
+                      <InCardProgress
+                        item={inQueue}
+                        onRush={(e) => { e.stopPropagation(); handleRush(slot.type); }}
+                        aether={activeSettlement?.resources?.aether_stone ?? 0}
+                        actionInProgress={actionInProgress}
+                      />
+                    )}
 
                     {/* Expanded detail panel */}
                     {isExpanded && (
@@ -639,34 +649,60 @@ function CostDisplay({ cost, resources }: { cost: Record<string, number>; resour
   );
 }
 
-function BuildQueueItem({ item }: { item: { type: string; targetLevel: number; startedAt: number; endsAt: number } }) {
+function InCardProgress({ item, onRush, aether, actionInProgress }: {
+  item: { type: string; targetLevel: number; startedAt: number; endsAt: number };
+  onRush: (e: React.MouseEvent) => void;
+  aether: number;
+  actionInProgress: boolean;
+}) {
   const remaining = useCountdown(item.endsAt);
-  const slot = BUILDING_SLOTS.find((s) => s.type === item.type);
   const totalDuration = (item.endsAt - item.startedAt) / 1000;
   const elapsed = totalDuration - remaining;
   const progress = totalDuration > 0 ? Math.max(0, Math.min(100, (elapsed / totalDuration) * 100)) : 100;
+  const rushCost = Math.max(1, Math.ceil(remaining / 10));
+  const canRush = aether >= rushCost && remaining > 0 && !actionInProgress;
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded bg-[var(--veil-blue)]/60 border border-[var(--ember-gold)]/20">
-      <span className="text-lg">{slot?.icon ?? '\u{1F3D7}'}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm text-[var(--parchment)]">
-            {slot?.name ?? item.type} Lv{item.targetLevel}
-          </span>
-          <span className="text-xs text-[var(--ember-gold)] font-mono">
-            {remaining > 0 ? formatTime(remaining) : 'Complete!'}
-          </span>
+    <div className="px-4 pb-3 pt-1" style={{ background: 'rgba(0,0,0,0.1)' }}>
+      <div className="flex items-center gap-3">
+        {/* Progress bar */}
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] text-[var(--ember-gold)]">
+              Lv{item.targetLevel} — {remaining > 0 ? formatTime(remaining) : 'Complete!'}
+            </span>
+            <span className="text-[10px] text-[var(--ruin-grey)]">{Math.round(progress)}%</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-[var(--veil-blue-deep)]">
+            <div
+              className="h-full rounded-full transition-all duration-1000"
+              style={{
+                width: `${progress}%`,
+                background: 'linear-gradient(90deg, var(--aether-violet), var(--aether-glow))',
+              }}
+            />
+          </div>
         </div>
-        <div className="w-full h-1.5 rounded-full bg-[var(--veil-blue-deep)]">
-          <div
-            className="h-full rounded-full transition-all duration-1000"
+        {/* Rush button */}
+        {remaining > 0 && (
+          <button
+            disabled={!canRush}
+            onClick={onRush}
+            className="shrink-0 text-[10px] font-semibold py-1 px-3 rounded-md transition-all"
             style={{
-              width: `${progress}%`,
-              background: 'linear-gradient(90deg, var(--aether-violet), var(--aether-glow))',
+              fontFamily: 'Cinzel, serif',
+              background: canRush
+                ? 'linear-gradient(135deg, rgba(74,123,255,0.3), rgba(123,79,191,0.2))'
+                : 'rgba(100,100,100,0.15)',
+              border: canRush ? '1px solid rgba(74,123,255,0.5)' : '1px solid rgba(100,100,100,0.2)',
+              color: canRush ? '#a5c4ff' : 'var(--ruin-grey)',
+              cursor: canRush ? 'pointer' : 'not-allowed',
             }}
-          />
-        </div>
+            title={`Spend ${rushCost} Aether Stone to finish instantly`}
+          >
+            {'\u{1F48E}'} {rushCost} Rush
+          </button>
+        )}
       </div>
     </div>
   );
