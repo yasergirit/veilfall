@@ -135,7 +135,7 @@ export default function QuestTracker() {
           {/* Quest List */}
           <div className="p-3 max-h-64 overflow-y-auto space-y-2">
             {displayQuests.length === 0 ? (
-              <p className="text-center text-xs text-[var(--ruin-grey)] py-4">No quests available</p>
+              <EmptyQuestState tab={tab} />
             ) : (
               displayQuests.map(quest => (
                 <QuestItem
@@ -170,6 +170,111 @@ export default function QuestTracker() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function EmptyQuestState({ tab }: { tab: TabKey }) {
+  const configs: Record<TabKey, { icon: React.ReactNode; title: string; subtitle: string }> = {
+    story: {
+      icon: (
+        <svg viewBox="0 0 64 64" className="w-16 h-16 mx-auto mb-3" fill="none">
+          {/* Book / scroll icon */}
+          <rect x="14" y="10" width="36" height="44" rx="3" fill="var(--veil-blue-deep)" stroke="var(--ruin-grey)" strokeWidth="1.5" opacity="0.6" />
+          <rect x="18" y="10" width="32" height="44" rx="2" fill="var(--veil-blue-deep)" stroke="var(--ember-gold)" strokeWidth="1" opacity="0.4" />
+          <path d="M24 22h16M24 28h12M24 34h14" stroke="var(--ruin-grey)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+          <circle cx="34" cy="42" r="6" fill="none" stroke="var(--aether-violet)" strokeWidth="1.2" opacity="0.5">
+            <animate attributeName="r" values="5;7;5" dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <path d="M34 39v6M31 42h6" stroke="var(--aether-violet)" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+          {/* Sparkle */}
+          <circle cx="46" cy="16" r="1.5" fill="var(--ember-gold)" opacity="0.6">
+            <animate attributeName="opacity" values="0.2;0.8;0.2" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="12" cy="30" r="1" fill="var(--aether-violet)" opacity="0.4">
+            <animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.5s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      ),
+      title: 'Your story awaits',
+      subtitle: 'Quest chapters will unfold as your settlement grows...',
+    },
+    daily: {
+      icon: (
+        <svg viewBox="0 0 64 64" className="w-16 h-16 mx-auto mb-3" fill="none">
+          {/* Sun / clock icon for daily */}
+          <circle cx="32" cy="32" r="14" fill="none" stroke="var(--ember-gold)" strokeWidth="1.5" opacity="0.3" />
+          <circle cx="32" cy="32" r="10" fill="var(--veil-blue-deep)" stroke="var(--ember-gold)" strokeWidth="1" opacity="0.5" />
+          <path d="M32 24v8l5 3" stroke="var(--ember-gold)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+          {/* Rays */}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const x1 = 32 + Math.cos(rad) * 17;
+            const y1 = 32 + Math.sin(rad) * 17;
+            const x2 = 32 + Math.cos(rad) * 20;
+            const y2 = 32 + Math.sin(rad) * 20;
+            return (
+              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--ember-gold)" strokeWidth="1.5" strokeLinecap="round" opacity="0.3">
+                <animate attributeName="opacity" values="0.15;0.5;0.15" dur={`${2 + i * 0.3}s`} repeatCount="indefinite" />
+              </line>
+            );
+          })}
+          {/* Hourglass sand particles */}
+          <circle cx="22" cy="50" r="1" fill="var(--ember-gold)" opacity="0.3">
+            <animate attributeName="cy" values="50;46;50" dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.1;0.5;0.1" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="42" cy="48" r="0.8" fill="var(--ember-gold)" opacity="0.2">
+            <animate attributeName="cy" values="48;44;48" dur="2.5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2.5s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      ),
+      title: 'No daily tasks yet',
+      subtitle: 'Build your settlement to unlock daily challenges',
+    },
+    milestone: {
+      icon: (
+        <svg viewBox="0 0 64 64" className="w-16 h-16 mx-auto mb-3" fill="none">
+          {/* Trophy / achievement icon */}
+          <path d="M22 18h20v8c0 8-4 14-10 16-6-2-10-8-10-16z" fill="var(--veil-blue-deep)" stroke="var(--aether-violet)" strokeWidth="1.2" opacity="0.5" />
+          <path d="M22 22h-6c0 6 3 10 6 10" stroke="var(--aether-violet)" strokeWidth="1" opacity="0.3" />
+          <path d="M42 22h6c0 6-3 10-6 10" stroke="var(--aether-violet)" strokeWidth="1" opacity="0.3" />
+          <rect x="28" y="42" width="8" height="4" rx="1" fill="var(--aether-violet)" opacity="0.3" />
+          <rect x="24" y="46" width="16" height="3" rx="1.5" fill="var(--aether-violet)" opacity="0.25" />
+          {/* Star */}
+          <path d="M32 24l2 4 4.5.7-3.2 3.2.8 4.5L32 34l-4.1 2.4.8-4.5-3.2-3.2L30 28z" fill="var(--aether-violet)" opacity="0.4">
+            <animate attributeName="opacity" values="0.2;0.6;0.2" dur="3s" repeatCount="indefinite" />
+          </path>
+          {/* Floating particles */}
+          <circle cx="16" cy="14" r="1.2" fill="var(--aether-violet)" opacity="0.3">
+            <animate attributeName="opacity" values="0.1;0.5;0.1" dur="2.2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="50" cy="12" r="1" fill="var(--aether-violet)" opacity="0.2">
+            <animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.8s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="48" cy="50" r="0.8" fill="var(--ember-gold)" opacity="0.2">
+            <animate attributeName="opacity" values="0.1;0.4;0.1" dur="3.2s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      ),
+      title: 'No milestones yet',
+      subtitle: 'Great achievements await those who persevere',
+    },
+  };
+
+  const config = configs[tab];
+
+  return (
+    <div className="flex flex-col items-center justify-center py-6 px-4">
+      {config.icon}
+      <p className="text-xs font-semibold text-[var(--parchment-dim)] mb-1" style={{ fontFamily: 'Cinzel, serif' }}>
+        {config.title}
+      </p>
+      <p className="text-[10px] text-[var(--ruin-grey)] text-center leading-relaxed italic">
+        {config.subtitle}
+      </p>
     </div>
   );
 }
