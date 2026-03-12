@@ -36,6 +36,10 @@ const UNIT_TYPES = [
   },
 ];
 
+const RESOURCE_ICONS: Record<string, string> = {
+  food: '\u{1F33E}', wood: '\u{1FAB5}', stone: '\u{1FAA8}', iron: '\u2699', aether_stone: '\u{1F48E}',
+};
+
 const RESOURCE_LABELS: Record<string, string> = {
   food: 'Food', wood: 'Wood', stone: 'Stone', iron: 'Iron', aether_stone: 'Aether',
 };
@@ -99,6 +103,14 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
     setCounts((prev) => ({ ...prev, [unitType]: num }));
   };
 
+  const handleIncrement = (unitType: string) => {
+    setCounts((prev) => ({ ...prev, [unitType]: Math.min(50, (prev[unitType] ?? 1) + 1) }));
+  };
+
+  const handleDecrement = (unitType: string) => {
+    setCounts((prev) => ({ ...prev, [unitType]: Math.max(1, (prev[unitType] ?? 1) - 1) }));
+  };
+
   return (
     <div>
       {message && (
@@ -114,7 +126,9 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
       {/* Train Queue */}
       {trainQueue.length > 0 && (
         <div className="mb-4">
-          <h4 className="text-sm font-semibold text-[var(--ember-gold)] mb-2">Training Queue</h4>
+          <h4 className="text-sm font-semibold text-[var(--ember-gold)] mb-2" style={{ fontFamily: 'Cinzel, serif' }}>
+            Training Queue
+          </h4>
           <div className="space-y-2">
             {trainQueue.map((item, idx) => {
               const unitDef = UNIT_TYPES.find((u) => u.type === item.unitType);
@@ -129,7 +143,8 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Unit Cards - vertical stack */}
+      <div className="flex flex-col gap-3">
         {UNIT_TYPES.map((unit) => {
           const hasBuilding = hasBuildingFor(unit.requires);
           const count = counts[unit.type] ?? 1;
@@ -140,79 +155,146 @@ export default function UnitPanel({ settlementId, resources, buildings, units, t
           return (
             <div
               key={unit.type}
-              className={`p-4 rounded-lg border text-left transition-all ${
+              className={`rounded-lg border text-left transition-all ${
                 !hasBuilding
                   ? 'border-[var(--ruin-grey)]/20 bg-[var(--veil-blue)]/20 opacity-50'
-                  : 'border-[var(--ruin-grey)]/30 bg-[var(--veil-blue)]/50'
+                  : 'border-[var(--ruin-grey)]/30 bg-[var(--veil-blue)]/50 hover:border-[var(--aether-violet)]/40'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{unit.icon}</span>
-                  <div>
-                    <span className="text-sm font-medium text-[var(--parchment)]">{unit.name}</span>
+              <div className="flex items-center gap-4 p-3">
+                {/* Left: Unit portrait */}
+                <div
+                  className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                  style={{
+                    width: 72,
+                    height: 72,
+                    background: 'linear-gradient(135deg, rgba(123,79,191,0.15) 0%, rgba(26,39,68,0.6) 100%)',
+                    border: '1px solid rgba(123,79,191,0.25)',
+                    fontSize: '2.25rem',
+                  }}
+                >
+                  {unit.icon}
+                </div>
+
+                {/* Middle: Info section */}
+                <div className="flex-1 min-w-0">
+                  {/* Name + count badge */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span
+                      className="text-sm font-semibold text-[var(--parchment)] truncate"
+                      style={{ fontFamily: 'Cinzel, serif' }}
+                    >
+                      {unit.name}
+                    </span>
                     {currentCount > 0 && (
-                      <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[var(--aether-violet)]/20 text-[var(--aether-violet)]">
+                      <span className="flex-shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full bg-[var(--aether-violet)]/25 text-[var(--aether-violet)] border border-[var(--aether-violet)]/30">
                         x{currentCount}
                       </span>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* Stats */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs text-[var(--parchment-dim)]">
-                <span>ATK {unit.stats.attack}</span>
-                <span>DEF {unit.stats.defense}</span>
-                <span>SPD {unit.stats.speed}</span>
-                <span>CAR {unit.stats.carry}</span>
-              </div>
-
-              {/* Cost per unit */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
-                {Object.entries(unit.cost).filter((e): e is [string, number] => e[1] != null).map(([res, amount]) => {
-                  const total = amount * count;
-                  const have = resources[res] ?? 0;
-                  const enough = have >= total;
-                  return (
-                    <span key={res} className={`text-xs ${enough ? 'text-[var(--parchment-dim)]' : 'text-red-400'}`}>
-                      {RESOURCE_LABELS[res] || res}: {total}
+                  {/* Stats row with dividers */}
+                  <div className="flex items-center gap-0 mb-2 text-xs text-[var(--parchment-dim)]">
+                    <span className="flex items-center gap-1" title="Attack">
+                      <span className="opacity-80">{'\u2694'}</span>
+                      <span>{unit.stats.attack}</span>
                     </span>
-                  );
-                })}
-                <span className="text-xs text-[var(--ruin-grey)]">
-                  {formatTime(unit.time * count)}
-                </span>
-              </div>
+                    <span className="mx-2 text-[var(--ruin-grey)]/50">|</span>
+                    <span className="flex items-center gap-1" title="Defense">
+                      <span className="opacity-80">{'\u{1F6E1}'}</span>
+                      <span>{unit.stats.defense}</span>
+                    </span>
+                    <span className="mx-2 text-[var(--ruin-grey)]/50">|</span>
+                    <span className="flex items-center gap-1" title="Speed">
+                      <span className="opacity-80">{'\u26A1'}</span>
+                      <span>{unit.stats.speed}</span>
+                    </span>
+                    <span className="mx-2 text-[var(--ruin-grey)]/50">|</span>
+                    <span className="flex items-center gap-1" title="Carry">
+                      <span className="opacity-80">{'\u{1F4E6}'}</span>
+                      <span>{unit.stats.carry}</span>
+                    </span>
+                  </div>
 
-              {/* Training controls */}
-              {hasBuilding ? (
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={count}
-                    onChange={(e) => handleCountChange(unit.type, e.target.value)}
-                    className="w-16 px-2 py-1 text-xs rounded bg-[var(--veil-blue-deep)] border border-[var(--ruin-grey)]/30 text-[var(--parchment)] text-center"
-                  />
-                  <button
-                    disabled={!canTrain}
-                    onClick={() => handleTrain(unit.type, count)}
-                    className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                      canTrain
-                        ? 'bg-[var(--aether-violet)]/30 border border-[var(--aether-violet)]/50 text-[var(--parchment)] hover:bg-[var(--aether-violet)]/50'
-                        : 'bg-[var(--ruin-grey)]/20 border border-[var(--ruin-grey)]/20 text-[var(--ruin-grey)] cursor-not-allowed'
-                    }`}
-                  >
-                    Train
-                  </button>
+                  {/* Separator line */}
+                  <div className="border-t border-[var(--ruin-grey)]/20 mb-2" />
+
+                  {/* Cost row + time */}
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs">
+                    {Object.entries(unit.cost).filter((e): e is [string, number] => e[1] != null).map(([res, amount]) => {
+                      const total = amount * count;
+                      const have = resources[res] ?? 0;
+                      const enough = have >= total;
+                      return (
+                        <span
+                          key={res}
+                          className={`flex items-center gap-1 ${enough ? 'text-[var(--parchment-dim)]' : 'text-red-400'}`}
+                        >
+                          <span>{RESOURCE_ICONS[res] || ''}</span>
+                          <span>{total}</span>
+                        </span>
+                      );
+                    })}
+                    <span className="flex items-center gap-1 text-[var(--ruin-grey)]">
+                      <span>{'\u23F1'}</span>
+                      <span>{formatTime(unit.time * count)}</span>
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <p className="text-xs text-[var(--ruin-grey)] italic mt-2">
-                  Requires {UNIT_TYPES.find((u) => u.type === unit.type)?.requires?.replace('_', ' ')}
-                </p>
-              )}
+
+                {/* Right: Training controls */}
+                {hasBuilding ? (
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {/* Stepper */}
+                    <div className="flex items-center rounded-md border border-[var(--ruin-grey)]/30 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => handleDecrement(unit.type)}
+                        className="w-7 h-7 flex items-center justify-center text-sm text-[var(--parchment-dim)] bg-[var(--veil-blue-deep)] hover:bg-[var(--veil-blue)] transition-colors"
+                        aria-label="Decrease count"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={count}
+                        onChange={(e) => handleCountChange(unit.type, e.target.value)}
+                        className="w-10 h-7 text-xs text-center bg-[var(--veil-blue-deep)] text-[var(--parchment)] border-x border-[var(--ruin-grey)]/30 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(unit.type)}
+                        className="w-7 h-7 flex items-center justify-center text-sm text-[var(--parchment-dim)] bg-[var(--veil-blue-deep)] hover:bg-[var(--veil-blue)] transition-colors"
+                        aria-label="Increase count"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Train button */}
+                    <button
+                      disabled={!canTrain}
+                      onClick={() => handleTrain(unit.type, count)}
+                      className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        canTrain
+                          ? 'text-white shadow-md hover:shadow-lg hover:brightness-110'
+                          : 'bg-[var(--ruin-grey)]/20 border border-[var(--ruin-grey)]/20 text-[var(--ruin-grey)] cursor-not-allowed'
+                      }`}
+                      style={canTrain ? {
+                        background: 'linear-gradient(135deg, var(--aether-violet) 0%, var(--aether-glow) 100%)',
+                      } : undefined}
+                    >
+                      Train
+                    </button>
+                  </div>
+                ) : (
+                  <p className="flex-shrink-0 text-xs text-[var(--ruin-grey)] italic max-w-[120px] text-right">
+                    Requires {unit.requires.replace(/_/g, ' ')}
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
