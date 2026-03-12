@@ -220,8 +220,11 @@ export default function ChatPanel() {
       {/* Collapsed Bar / Header */}
       <button
         onClick={handleToggle}
-        className="flex items-center justify-between px-3 h-8 shrink-0 rounded-t-lg border border-b-0 border-[var(--ruin-grey)]/30 text-sm transition-colors hover:border-[var(--aether-violet)]/40"
-        style={{ background: 'rgba(26, 39, 68, 0.95)' }}
+        className="flex items-center justify-between px-3 h-8 shrink-0 border border-b-0 border-[var(--ruin-grey)]/30 text-sm transition-colors hover:border-[var(--aether-violet)]/40"
+        style={{
+          background: 'url(/assets/gui/panels/body_base.png) center/cover, rgba(26, 39, 68, 0.95)',
+          borderRadius: expanded ? '0' : '8px 8px 0 0',
+        }}
       >
         <span className="text-[var(--parchment-dim)] text-xs flex items-center gap-1.5" style={{ fontFamily: 'Cinzel, serif' }}>
           {expanded ? activeChannel.label + ' Chat' : 'World Chat'}
@@ -249,9 +252,19 @@ export default function ChatPanel() {
       {/* Expanded Panel */}
       {expanded && (
         <div
-          className="rpg-chat-bg flex-1 flex flex-col border border-[var(--ruin-grey)]/30 rounded-b-lg overflow-hidden"
-          style={{ background: 'url(/assets/gui/chat/chat_main_bg.png) center/cover, rgba(18, 28, 50, 0.97)' }}
+          className="flex-1 flex flex-col overflow-hidden relative"
+          style={{
+            background: 'url(/assets/gui/chat/chat_main_bg.png) center/cover, rgba(18, 28, 50, 0.97)',
+            border: '3px solid #3a2a1a',
+            boxShadow: 'inset 0 0 12px rgba(0,0,0,0.5)',
+          }}
         >
+          {/* Bottom ornament */}
+          <img
+            src="/assets/gui/chat/bottom_ornament.png"
+            alt=""
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-24 z-10 pointer-events-none"
+          />
           {/* Channel Tabs */}
           <div className="flex border-b border-[var(--ruin-grey)]/20 shrink-0">
             {channels.map((ch) => (
