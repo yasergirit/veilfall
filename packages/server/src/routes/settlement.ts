@@ -248,12 +248,14 @@ export async function settlementRoutes(app: FastifyInstance) {
     };
   });
 
-  // Debug: Add resources (tester/admin only)
+  // Debug: Add resources (tester/admin only, with email fallback for old tokens)
+  const TESTER_EMAILS = ['odgardian@gmail.com', 'yasergirit@gmail.com'];
   const addResourceSchema = z.object({ resource: z.string() });
 
   app.post('/:settlementId/add-resource', { preHandler: requireAuth }, async (request, reply) => {
     const player = request.user;
-    if (player.role !== 'tester' && player.role !== 'admin') {
+    const isTester = player.role === 'tester' || player.role === 'admin' || TESTER_EMAILS.includes(player.email);
+    if (!isTester) {
       return reply.status(403).send({ error: 'Not authorized' });
     }
 

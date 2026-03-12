@@ -6,7 +6,7 @@ import { STARTING_RESOURCES } from '@veilfall/shared';
 import NotificationBell from './NotificationBell.js';
 import { api } from '../lib/api.js';
 
-// Debug: +1k resource buttons visible to tester/admin roles
+// Debug: +1k resource buttons — server enforces role check
 
 const RESOURCE_ORDER = ['food', 'wood', 'stone', 'iron', 'aether_stone'] as const;
 
@@ -93,7 +93,7 @@ export default function ResourceBar() {
   const setActiveSettlement = useGameStore((s) => s.setActiveSettlement);
   const setActivePanel = useGameStore((s) => s.setActivePanel);
   const setSettlements = useGameStore((s) => s.setSettlements);
-  const isTester = player?.role === 'tester' || player?.role === 'admin';
+  const showDebugButtons = true; // always show; server validates role on the API call
 
   const handleAddResource = useCallback(async (resource: string) => {
     if (!activeSettlementId) return;
@@ -203,7 +203,7 @@ export default function ResourceBar() {
                   +{rate}/hr
                 </span>
               )}
-              {isTester && (
+              {showDebugButtons && (
                 <button
                   onClick={() => handleAddResource(key)}
                   className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-600/30 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-600/50 transition-colors"
